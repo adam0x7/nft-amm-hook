@@ -18,7 +18,14 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 contract NFTAMMHook is ERC1155, BaseHook {
-    constructor(){
 
-    }
+    using PoolIdLibrary for PoolKey;
+    using CurrencyLibrary for Currency;
+    using FixedPointMathLib for uint256;
+
+    constructor(IPoolManager _manager,
+                    string memory _uri) BaseHook(_manager) ERC1155(_uri) {}
+
+
+
 }
