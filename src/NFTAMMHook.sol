@@ -34,6 +34,21 @@ contract NFTAMMHook is ERC1155, BaseHook {
     constructor(IPoolManager _manager,
                     string memory _uri) BaseHook(_manager) ERC1155(_uri) {}
 
+    function getHookPermissions() public pure override returns (Hook.Permissions memory) {
+        return Hook.Permissions({
+            beforeInitialize: false,
+            afterInitialize: false,
+            beforeAddLiquidity: false,
+            afterAddLiquidity: true,
+            beforeRemoveLiquidity: false,
+            afterRemoveLiquidity: false,
+            beforeSwap: false,
+            afterSwap: false,
+            beforeDonate: false,
+            afterDonate: false
+        });
+    }
+
 
 
 
