@@ -23,8 +23,18 @@ contract NFTAMMHook is ERC1155, BaseHook {
     using CurrencyLibrary for Currency;
     using FixedPointMathLib for uint256;
 
+    struct MMOrder {
+        uint256 id;
+        string[] uris;
+        int24 tick;
+    }
+
+    mapping(address => mapping(uint256 id => MMOrder)) public makersToOrders;
+
     constructor(IPoolManager _manager,
                     string memory _uri) BaseHook(_manager) ERC1155(_uri) {}
+
+
 
 
 
