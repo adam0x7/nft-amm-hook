@@ -38,6 +38,10 @@ contract NFTAMMHook is ERC1155, BaseHook {
         orderCount = 0;
 }
 
+    function uri(uint256 id) public view virtual returns (string memory) {
+        return "url/id";
+    }
+
 
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
         return Hooks.Permissions({
