@@ -21,7 +21,7 @@ contract NFTAMMHook is ERC1155, BaseHook {
 
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
-    using FixedPointMathLib for uint256;
+
 
     struct MMOrder {
         uint256 id;
@@ -30,12 +30,17 @@ contract NFTAMMHook is ERC1155, BaseHook {
     }
 
     mapping(address => mapping(uint256 id => MMOrder)) public makersToOrders;
+    uint256 public orderCount;
+
 
     constructor(IPoolManager _manager,
-                    string memory _uri) BaseHook(_manager) ERC1155(_uri) {}
+                    string memory _uri) BaseHook(_manager) ERC1155() {
+        orderCount = 0;
+}
 
-    function getHookPermissions() public pure override returns (Hook.Permissions memory) {
-        return Hook.Permissions({
+
+    function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
+        return Hooks.Permissions({
             beforeInitialize: false,
             afterInitialize: false,
             beforeAddLiquidity: false,
@@ -47,6 +52,15 @@ contract NFTAMMHook is ERC1155, BaseHook {
             beforeDonate: false,
             afterDonate: false
         });
+    }
+
+
+    function createMMOrder(string[] calldata uris, int24 tick) public returns(MMOrder memory) {
+        require(address(msg.sender) != address(0));
+        uint256 orderId = orderCount + 1;
+        MMOrder memory newOrder = MMOrder(orderId, uris, tick);
+        makersToOrders[msg.sender][orderId] = newOrder;
+        return newOrder;
     }
 
 
