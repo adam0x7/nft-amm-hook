@@ -17,16 +17,21 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
+import {IERC721} from "openzeppelin-contracts/interfaces/IERC721.sol"
+
 contract NFTAMMHook is ERC1155, BaseHook {
 
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
 
+    address wrappedToken;
+    address collection;
+
 
     struct MMOrder {
         uint256 id;
-        string[] uris;
         int24 tick;
+        address nftAddress;
     }
 
     mapping(address => mapping(uint256 id => MMOrder)) public makersToOrders;
@@ -38,7 +43,7 @@ contract NFTAMMHook is ERC1155, BaseHook {
         orderCount = 0;
 }
 
-    function uri(uint256 id) public view virtual returns (string memory) {
+    function uri(uint256 id) public view virtual override returns (string memory) {
         return "url/id";
     }
 
@@ -59,11 +64,17 @@ contract NFTAMMHook is ERC1155, BaseHook {
     }
 
 
-    function createMMOrder(string[] calldata uris, int24 tick) public returns(MMOrder memory) {
+    function createMMOrder(address _nftAddress, int24 tick) public returns(MMOrder memory) {
         require(address(msg.sender) != address(0));
         uint256 orderId = orderCount + 1;
-        MMOrder memory newOrder = MMOrder(orderId, uris, tick);
+        MMOrder memory newOrder = MMOrder(orderId,  tick, _nftAddress);
         makersToOrders[msg.sender][orderId] = newOrder;
+
+        //transferring nft to hook
+        IERC721(newOrder.nftAddress).safeTransferFrom()
+        IERC20.(wrappedToken).allowance() // add allowance of 0 to msg.sender
+
+        IERC20.(wrappedToken).transferFrom() // tokens of hook to user for escrow
         return newOrder;
     }
 
