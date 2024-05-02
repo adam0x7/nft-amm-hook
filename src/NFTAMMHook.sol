@@ -115,9 +115,24 @@ contract NFTAMMHook is ERC1155, BaseHook {
         return newOrder;
     }
 
-    //on before swap, change allowance of msg.sender and swap on pool
+
+
+    function beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata) external virtual returns (bytes4) {
+        // TODO - on before swap change allowance of msg.sender and swap on pool
+        return this.beforeSwap.selecter;
+    }
 
     //on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
+    function afterSwap(
+                    address sender,
+                    PoolKey calldata key,
+                    IPoolManager.SwapParams calldata params,
+                    BalanceDelta,
+                    bytes calldata
+                    ) external override poolManagerOnly returns (bytes4) {
+        // TODO - on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
+        return this.afterSwap.selector;
+    }
 
     // does this even work?
     function createTickMappings(
