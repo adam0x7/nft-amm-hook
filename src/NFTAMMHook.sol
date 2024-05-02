@@ -27,10 +27,19 @@ contract NFTAMMHook is ERC1155, BaseHook {
     address wrappedToken;
     address collection;
 
+    uint256 private constant ONE = 1e18;  // 1e18 to represent 1.0 with 18 decimal precision
+    uint256 private constant BASE = 100000;  // Base for 1.0001 represented as 1.0001 * 10^5 for precision
+    uint256 private constant ONE_HUNDRED = 100;  // For percentage calculations
+
 
     struct MMOrder {
-        uint256 id;
-        int24 tick;
+        mapping(uint256 => uint256) tokenIdsToTicks; //nfts being sold
+        int24 startingTick;
+        int24 currentTick;
+        uint256 ethBalance;
+        uint256 maxNumOfNFTs;
+        uint256 delta;
+        uint256 fee;
         address nftAddress;
     }
 
@@ -44,7 +53,7 @@ contract NFTAMMHook is ERC1155, BaseHook {
 }
 
     function uri(uint256 id) public view virtual override returns (string memory) {
-        return "url/id";
+        return "url/id"; // fix this lol
     }
 
 
@@ -63,11 +72,33 @@ contract NFTAMMHook is ERC1155, BaseHook {
         });
     }
 
+    // @notice creating the market making order. A bid on the collection to both buy and sell nfts
+    // @param _nftAddress - token address of the nft
+    // @param - ids of the nfts being sold
+    // @param - delta, the percent by which every order will change on the bond curve
+    // @param - fee, the spread at which the maker will charge on their trades to be profitable
 
-    function createMMOrder(address _nftAddress, int24 tick) public returns(MMOrder memory) {
+    function createMMOrder(address _nftAddress,
+                            int24 startingTick,
+                            uint256[] tokenIds,
+                            uint256 delta,
+                            uint256 fee,
+                            uint256 maxNumOfNFTs) external payable returns(MMOrder memory) {
         require(address(msg.sender) != address(0));
+
+        //creating the order
+
+        //buy side: deposit eth into contract. delta represents the decreasing tick intervals to go down
+        //add a check so that the eth deposited into the contract is == the amount of eth required to fulfill the order
+        //or return it
+        uint256 startingWeiPrice = getEthPriceAtTick(startingTick);
+        require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length()));
+
+        //sell side:
+
         uint256 orderId = orderCount + 1;
-        MMOrder memory newOrder = MMOrder(orderId,  tick, _nftAddress);
+        MMOrder memory newOrder = MMOrder(orderId,
+                                            tick, _nftAddress);
         makersToOrders[msg.sender][orderId] = newOrder;
 
         //transferring nft to hook
@@ -77,6 +108,45 @@ contract NFTAMMHook is ERC1155, BaseHook {
         IERC20.(wrappedToken).transferFrom() // tokens of hook to user for escrow
         return newOrder;
     }
+
+
+    function getEthPriceAtTick(int256 tick) public pure returns (uint256) {
+            uint256 result = ONE;
+            uint256 factor = BASE;
+
+            if (tick < 0) {
+                tick = -tick;  // Make tick positive for calculation
+                factor = ONE * ONE / BASE;  // Use reciprocal for negative ticks
+            }
+
+            for (int256 i = 0; i < tick; i++) {
+                result = result * factor / ONE;
+            }
+
+            return result;
+        }
+
+    function isThereEnoughEth(uint256 initialPrice,
+                                uint256 delta,
+                                uint256 totalEth,
+                                uint256 numberOfNftS) public pure returns (uint256) {
+            uint256 remainingEth = totalEth;
+            uint256 currentPrice = initialPrice;
+            uint256 coveredSteps = 0;
+
+            for (uint256 i = 0; i < steps; i++) {
+                if (remainingEth >= currentPrice) {
+                    remainingEth -= currentPrice;
+                    coveredSteps++;
+
+            // Calculate next step's price
+            currentPrice = currentPrice * (ONE_HUNDRED - delta) / ONE_HUNDRED;
+            } else {
+                    break;
+                }
+            }
+            return remainingEth >= 0 ? true : false
+        }
 
 
 
