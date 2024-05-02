@@ -117,7 +117,9 @@ contract NFTAMMHook is ERC1155, BaseHook {
 
 
 
-    function beforeSwap(address, PoolKey calldata, IPoolManager.SwapParams calldata, bytes calldata) external virtual returns (bytes4) {
+    function beforeSwap(address sender,
+                        PoolKey calldata,
+                        IPoolManager.SwapParams calldata, bytes calldata) external virtual returns (bytes4) {
         // TODO - on before swap change allowance of msg.sender and swap on pool
         return this.beforeSwap.selecter;
     }
