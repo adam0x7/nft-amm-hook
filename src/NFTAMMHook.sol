@@ -34,7 +34,8 @@ contract NFTAMMHook is ERC1155, BaseHook {
 
     struct MMOrder {
         mapping(uint256 => uint256) tokenIdsToTicks; //nfts being sold
-        int24 startingTick;
+        int24 startingBuyTick;
+        int24 startingSellTick;
         int24 currentTick;
         uint256 ethBalance;
         uint256 maxNumOfNFTs;
@@ -77,9 +78,9 @@ contract NFTAMMHook is ERC1155, BaseHook {
     // @param - ids of the nfts being sold
     // @param - delta, the percent by which every order will change on the bond curve
     // @param - fee, the spread at which the maker will charge on their trades to be profitable
-
-    function createMMOrder(address _nftAddress,
-                            int24 startingTick,
+    function marketMake(address _nftAddress,
+                            int24 startingBuyTick,
+                            int24 startingSellTick,
                             uint256[] tokenIds,
                             uint256 delta,
                             uint256 fee,
@@ -91,23 +92,49 @@ contract NFTAMMHook is ERC1155, BaseHook {
         //buy side: deposit eth into contract. delta represents the decreasing tick intervals to go down
         //add a check so that the eth deposited into the contract is == the amount of eth required to fulfill the order
         //or return it
-        uint256 startingWeiPrice = getEthPriceAtTick(startingTick);
+        uint256 startingWeiPrice = getEthPriceAtTick(startingBuyTick);
         require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length()));
 
-        //sell side:
+        //idea is to buy low sell high. selling tick needs to be slightly higher than buy tick
+        require(startingSellTick > startingBuyTick)
 
         uint256 orderId = orderCount + 1;
-        MMOrder memory newOrder = MMOrder(orderId,
+
+        //creating the order
+        MMOrder memory newOrder = MMOrder(,
                                             tick, _nftAddress);
         makersToOrders[msg.sender][orderId] = newOrder;
 
-        //transferring nft to hook
+        //transfer nfts to hook from order
+        //mint wrapped tokens to user according to wei price
+        // make allowance 0
         IERC721(newOrder.nftAddress).safeTransferFrom()
         IERC20.(wrappedToken).allowance() // add allowance of 0 to msg.sender
 
         IERC20.(wrappedToken).transferFrom() // tokens of hook to user for escrow
         return newOrder;
     }
+
+    //on before swap, change allowance of msg.sender and swap on pool
+
+    //on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
+
+    // does this even work?
+    function createTickMappings(
+                    uint256[] memory tokenIds,
+                    uint256 startingSellTick,
+                    uint256 delta ) internal pure returns (mapping(uint256 => uint256) storage ticksMap) {
+        uint256 currentTick = startingSellTick;
+
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            ticksMap[tokenIds[i]] = currentTick;
+            currentTick = currentTick * (100 - delta) / 100;
+        }
+    }
+
+
+
 
 
     function getEthPriceAtTick(int256 tick) public pure returns (uint256) {
