@@ -150,10 +150,6 @@ contract NFTAMMHook is ERC1155, BaseHook {
         }
     }
 
-
-
-
-
     function getEthPriceAtTick(int256 tick) public pure returns (uint256) {
             uint256 result = ONE;
             uint256 factor = BASE;
