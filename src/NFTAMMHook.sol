@@ -17,7 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
-import {IERC721} from "openzeppelin-contracts/interfaces/IERC721.sol";
+import {IERC721} from "openzeppelin/interfaces/IERC721.sol";
 
 contract NFTAMMHook is ERC20, BaseHook {
 
@@ -49,8 +49,12 @@ contract NFTAMMHook is ERC20, BaseHook {
 
 
     constructor(IPoolManager _manager,
-                    string memory _uri) BaseHook(_manager) ERC20() {
+        string memory name,
+        string memory symbol,
+        uint256 initialSupply) BaseHook(_manager) ERC20(name, symbol) {
         orderCount = 0;
+
+        _mint(address(this), initialSupply);
 }
 
     function uri(uint256 id) public view virtual override returns (string memory) {
@@ -81,10 +85,10 @@ contract NFTAMMHook is ERC20, BaseHook {
     function marketMake(address _nftAddress,
                             int24 startingBuyTick,
                             int24 startingSellTick,
-                            uint256[] tokenIds,
+                            uint256[] calldata tokenIds,
                             uint256 delta,
                             uint256 fee,
-                            uint256 maxNumOfNFTs) external payable returns(MMOrder memory) {
+                            uint256 maxNumOfNFTs) external payable {
         require(address(msg.sender) != address(0));
 
         //creating the order
@@ -118,10 +122,8 @@ contract NFTAMMHook is ERC20, BaseHook {
         IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes());
 
         //calculate wrapped token amount
-        uint256 tokensToTransfer = calculateWrappedTokens(startingWeiPrice, tokenIds);
-        IERC20(wrappedToken).allowance(msg.sender, 0); // allowance is 0 to prevent tokens being spent
-        address(this).transfer(msg.sender, tokensToTransfer);
-        return newOrder;
+        uint256 tokensToTransfer = calculateWrappedTokens(startingWeiPrice, tokenIds, delta);
+        approve(msg.sender, 0); // allowance is 0 to prevent tokens being spent
     }
 
 
@@ -146,7 +148,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     }
 
 
-    function calculateWrappedTokens(uint256 startingWeiPrice, string[] tokenIds) internal returns(uint256) {
+    function calculateWrappedTokens(uint256 startingWeiPrice, string[] calldata tokenIds, uint256 delta) internal returns(uint256) {
         // Calculate the total value of the NFTs being sold at the starting price
         uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
 
@@ -156,13 +158,10 @@ contract NFTAMMHook is ERC20, BaseHook {
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
         // Calculate the wrapped tokens to mint for the current NFT
-        uint256 wrappedTokensForCurrentNFT = (currentPrice * totalWrappedTokenSupply) / totalValueAtStartingPrice;
+        uint256 wrappedTokensForCurrentNFT = (currentPrice * totalSupply) / totalValueAtStartingPrice;
 
         // Mint the wrapped tokens for the current NFT
-        _mintWrappedTokens(msg.sender, wrappedTokensForCurrentNFT);
-
-        // Update the total wrapped tokens minted
-        totalWrappedTokensMinted += wrappedTokensForCurrentNFT;
+        _mint(msg.sender, wrappedTokensForCurrentNFT);
 
         // Calculate the price for the next NFT on the bond curve
         currentPrice = currentPrice * (100 - delta) / 100;
@@ -208,7 +207,7 @@ contract NFTAMMHook is ERC20, BaseHook {
             uint256 currentPrice = initialPrice;
             uint256 coveredSteps = 0;
 
-            for (uint256 i = 0; i < steps; i++) {
+            for (uint256 i = 0; i < numberOfNftS; i++) {
                 if (remainingEth >= currentPrice) {
                     remainingEth -= currentPrice;
                     coveredSteps++;
