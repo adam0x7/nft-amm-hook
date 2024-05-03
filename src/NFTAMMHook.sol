@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-
-
 import {ERC20} from "solmate/tokens/ERC20.sol";
 
 import {BaseHook} from "v4-periphery/BaseHook.sol";
@@ -19,7 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
-import {IERC721} from "openzeppelin-contracts/interfaces/IERC721.sol"
+import {IERC721} from "openzeppelin-contracts/interfaces/IERC721.sol";
 
 contract NFTAMMHook is ERC20, BaseHook {
 
@@ -97,7 +95,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length()));
 
         //idea is to buy low sell high. selling tick needs to be slightly higher than buy tick
-        require(startingSellTick > startingBuyTick)
+        require(startingSellTick > startingBuyTick);
 
         uint256 orderId = orderCount + 1;
 
@@ -117,16 +115,12 @@ contract NFTAMMHook is ERC20, BaseHook {
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
-        // make allowance 0
-        IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes())
+        IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes());
 
         //calculate wrapped token amount
-
-
-        address(this).transfer(msg.sender, )
-        IERC20.(wrappedToken).allowance() // add allowance of 0 to msg.sender
-
-        IERC20.(wrappedToken).transferFrom() // tokens of hook to user for escrow
+        uint256 tokensToTransfer = calculateWrappedTokens(startingWeiPrice, tokenIds);
+        IERC20(wrappedToken).allowance(msg.sender, 0); // allowance is 0 to prevent tokens being spent
+        address(this).transfer(msg.sender, tokensToTransfer);
         return newOrder;
     }
 
@@ -152,7 +146,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     }
 
 
-    function calculateWrappedTokens(uint256 startingWeiPrice, string[] tokeniDS) internal returns(uint256) {
+    function calculateWrappedTokens(uint256 startingWeiPrice, string[] tokenIds) internal returns(uint256) {
         // Calculate the total value of the NFTs being sold at the starting price
         uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
 
@@ -173,7 +167,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         // Calculate the price for the next NFT on the bond curve
         currentPrice = currentPrice * (100 - delta) / 100;
         }
-        return currentPrice
+        return currentPrice;
     }
 
     // does this even work?
