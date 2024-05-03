@@ -33,7 +33,7 @@ contract NFTAMMHook is ERC20, BaseHook {
 
 
     struct MMOrder {
-        mapping(uint256 => uint256) tokenIdsToTicks; //nfts being sold
+        mapping(uint256 => int24) tokenIdsToTicks; //nfts being sold
         int24 startingBuyTick;
         int24 startingSellTick;
         int24 currentTick;
@@ -51,15 +51,14 @@ contract NFTAMMHook is ERC20, BaseHook {
     constructor(IPoolManager _manager,
         string memory name,
         string memory symbol,
-        uint256 initialSupply) BaseHook(_manager) ERC20(name, symbol) {
+        uint256 initialSupply,
+        uint8 decimals) BaseHook(_manager) ERC20(name, symbol, decimals) {
         orderCount = 0;
 
         _mint(address(this), initialSupply);
 }
 
-    function uri(uint256 id) public view virtual override returns (string memory) {
-        return "url/id"; // fix this lol
-    }
+
 
 
     function getHookPermissions() public pure override returns (Hooks.Permissions memory) {
@@ -77,26 +76,28 @@ contract NFTAMMHook is ERC20, BaseHook {
         });
     }
 
-    // @notice creating the market making order. A bid on the collection to both buy and sell nfts
-    // @param _nftAddress - token address of the nft
-    // @param - ids of the nfts being sold
-    // @param - delta, the percent by which every order will change on the bond curve
-    // @param - fee, the spread at which the maker will charge on their trades to be profitable
-    function marketMake(address _nftAddress,
-                            int24 startingBuyTick,
-                            int24 startingSellTick,
-                            uint256[] calldata tokenIds,
-                            uint256 delta,
-                            uint256 fee,
-                            uint256 maxNumOfNFTs) external payable {
+// @notice creating the market making order. A bid on the collection to both buy and sell nfts
+// @param _nftAddress - token address of the nft
+// @param - ids of the nfts being sold
+// @param - delta, the percent by which every order will change on the bond curve
+// @param - fee, the spread at which the maker will charge on their trades to be profitable
+    function marketMake(
+        address _nftAddress,
+        int24 startingBuyTick,
+        int24 startingSellTick,
+        uint256[] calldata tokenIds,
+        uint256 delta,
+        uint256 fee,
+        uint256 maxNumOfNFTs
+    ) external payable {
         require(address(msg.sender) != address(0));
 
         //creating the order
         //buy side: deposit eth into contract. delta represents the decreasing tick intervals to go down
         //add a check so that the eth deposited into the contract is == the amount of eth required to fulfill the order
         //or return it
-        uint256 startingWeiPrice = getEthPriceAtTick(startingBuyTick);
-        require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length()));
+        uint256 startingWeiPrice = getEthPriceAtTick(int256(startingBuyTick));
+        require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length));
 
         //idea is to buy low sell high. selling tick needs to be slightly higher than buy tick
         require(startingSellTick > startingBuyTick);
@@ -104,9 +105,10 @@ contract NFTAMMHook is ERC20, BaseHook {
         uint256 orderId = orderCount + 1;
 
         //creating the order
-
-        MMOrder memory newOrder;
-        newOrder.tokenIdsToTicks = createTickMappings(tokenIds, startingSellTick, delta);
+        MMOrder storage newOrder = makersToOrders[msg.sender][orderId];
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            newOrder.tokenIdsToTicks[tokenIds[i]] = createTickMappingsForSingleToken(int24(startingSellTick), delta, i);
+        }
         newOrder.startingBuyTick = startingBuyTick;
         newOrder.startingSellTick = startingSellTick;
         newOrder.currentTick = startingSellTick;
@@ -115,22 +117,54 @@ contract NFTAMMHook is ERC20, BaseHook {
         newOrder.delta = delta;
         newOrder.fee = fee;
         newOrder.nftAddress = _nftAddress;
-        makersToOrders[msg.sender][orderId] = newOrder;
+        orderCount++;
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
-        IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes());
+        IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes(0));
 
         //calculate wrapped token amount
         uint256 tokensToTransfer = calculateWrappedTokens(startingWeiPrice, tokenIds, delta);
         approve(msg.sender, 0); // allowance is 0 to prevent tokens being spent
     }
 
+    function calculateWrappedTokens(uint256 startingWeiPrice, uint256[] calldata tokenIds, uint256 delta) internal returns (uint256) {
+        // Calculate the total value of the NFTs being sold at the starting price
+        uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
+
+        // Initialize variables
+        uint256 currentPrice = startingWeiPrice;
+        uint256 totalWrappedTokensMinted = 0;
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            // Calculate the wrapped tokens to mint for the current NFT
+            uint256 wrappedTokensForCurrentNFT = (currentPrice * totalSupply) / totalValueAtStartingPrice;
+
+            // Mint the wrapped tokens for the current NFT
+            _mint(msg.sender, wrappedTokensForCurrentNFT);
+
+            // Update the total wrapped tokens minted
+            totalWrappedTokensMinted += wrappedTokensForCurrentNFT;
+
+            // Calculate the price for the next NFT on the bond curve
+            currentPrice = currentPrice * (100 - delta) / 100;
+        }
+        return totalWrappedTokensMinted;
+    }
+
+    function createTickMappingsForSingleToken(int24 startingSellTick, uint256 delta, uint256 index) internal pure returns (uint24) {
+        uint24 currentTick = uint24(startingSellTick);
+        for (uint256 i = 0; i < index; i++) {
+            currentTick = uint24(uint256(currentTick) * (100 - delta) / 100);
+        }
+        return currentTick;
+    }
+
 
 
     function beforeSwap(address sender,
                         PoolKey calldata,
-                        IPoolManager.SwapParams calldata, bytes calldata) external virtual returns (bytes4) {
+                        IPoolManager.SwapParams calldata, bytes calldata) external override virtual returns (bytes4) {
         // TODO - on before swap change allowance of msg.sender and swap on pool
         return this.beforeSwap.selecter;
     }
@@ -148,40 +182,40 @@ contract NFTAMMHook is ERC20, BaseHook {
     }
 
 
-    function calculateWrappedTokens(uint256 startingWeiPrice, string[] calldata tokenIds, uint256 delta) internal returns(uint256) {
-        // Calculate the total value of the NFTs being sold at the starting price
-        uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
-
-        // Initialize variables
-        uint256 currentPrice = startingWeiPrice;
-        uint256 totalWrappedTokensMinted = 0;
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-        // Calculate the wrapped tokens to mint for the current NFT
-        uint256 wrappedTokensForCurrentNFT = (currentPrice * totalSupply) / totalValueAtStartingPrice;
-
-        // Mint the wrapped tokens for the current NFT
-        _mint(msg.sender, wrappedTokensForCurrentNFT);
-
-        // Calculate the price for the next NFT on the bond curve
-        currentPrice = currentPrice * (100 - delta) / 100;
-        }
-        return currentPrice;
-    }
-
-    // does this even work?
-    function createTickMappings(
-                    uint256[] memory tokenIds,
-                    uint256 startingSellTick,
-                    uint256 delta ) internal pure returns (mapping(uint256 => uint256) storage ticksMap) {
-        uint256 currentTick = startingSellTick;
-
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            ticksMap[tokenIds[i]] = currentTick;
-            currentTick = currentTick * (100 - delta) / 100;
-        }
-    }
+//    function calculateWrappedTokens(uint256 startingWeiPrice, string[] calldata tokenIds, uint256 delta) internal returns(uint256) {
+//        // Calculate the total value of the NFTs being sold at the starting price
+//        uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
+//
+//        // Initialize variables
+//        uint256 currentPrice = startingWeiPrice;
+//        uint256 totalWrappedTokensMinted = 0;
+//
+//        for (uint256 i = 0; i < tokenIds.length; i++) {
+//        // Calculate the wrapped tokens to mint for the current NFT
+//        uint256 wrappedTokensForCurrentNFT = (currentPrice * totalSupply) / totalValueAtStartingPrice;
+//
+//        // Mint the wrapped tokens for the current NFT
+//        _mint(msg.sender, wrappedTokensForCurrentNFT);
+//
+//        // Calculate the price for the next NFT on the bond curve
+//        currentPrice = currentPrice * (100 - delta) / 100;
+//        }
+//        return currentPrice;
+//    }
+//
+//    // does this even work?
+//    function createTickMappings(
+//                    uint256[] memory tokenIds,
+//                    int24 startingSellTick,
+//                    uint256 delta ) internal pure returns (mapping(uint256 => uint256) storage ticksMap) {
+//        uint256 currentTick = startingSellTick;
+//
+//
+//        for (uint256 i = 0; i < tokenIds.length; i++) {
+//            ticksMap[tokenIds[i]] = currentTick;
+//            currentTick = currentTick * (100 - delta) / 100;
+//        }
+//    }
 
     function getEthPriceAtTick(int256 tick) public pure returns (uint256) {
             uint256 result = ONE;
@@ -202,7 +236,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     function isThereEnoughEth(uint256 initialPrice,
                                 uint256 delta,
                                 uint256 totalEth,
-                                uint256 numberOfNftS) public pure returns (uint256) {
+                                uint256 numberOfNftS) public pure returns (bool) {
             uint256 remainingEth = totalEth;
             uint256 currentPrice = initialPrice;
             uint256 coveredSteps = 0;
