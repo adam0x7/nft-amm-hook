@@ -141,19 +141,16 @@ contract NFTAMMHook is ERC20, BaseHook {
         IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
         }
 
-        //update wNFT balance and add liquidity
-        addLiquidityAndDetermineShare(startingWeiPrice, tokenIds, delta);
+        //updating wrapped token share. user doesn't actually get the tokens so the hook has to supply liquidity for them
+        determineWrappedTokenShare(startingWeiPrice, tokenIds, delta);
     }
 
-    function addLiquidityAndDetermineShare(uint256 startingWeiPrice, uint256[] calldata tokenIds, uint256 delta) internal {
+    function determineWrappedTokenShare(uint256 startingWeiPrice, uint256[] calldata tokenIds, uint256 delta) internal {
         // Calculating the total value of the NFTs being deposited in wei
         uint256 saleOrderInWei = totalDecreasingPrice(startingWeiPrice, delta, tokenIds.length);
         uint256 saleOrderInEth = saleOrderInWei / 1e18;
         //for purpose of testing, each wrapped nft token == 1 ether
-        makerBalances[msg.sender] = saleOrderInEth;
-        //add liquidity here
-
-        
+        makerBalances[msg.sender] += saleOrderInEth;
     }
 
     function createTickMappingsForSingleToken(int24 startingSellTick, uint256 delta, uint256 index) internal pure returns (uint24) {
