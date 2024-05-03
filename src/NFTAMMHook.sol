@@ -136,7 +136,7 @@ contract NFTAMMHook is ERC20, BaseHook {
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
-
+        //TODO move this to its own function / library
         for (uint256 i = 0; i < tokenIds.length; i++) {
         IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
         }
