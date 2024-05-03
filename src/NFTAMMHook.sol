@@ -2,7 +2,9 @@
 pragma solidity ^0.8.0;
 
 
-import {ERC1155} from "solmate/tokens/ERC1155.sol";
+
+import {ERC20} from "solmate/tokens/ERC20.sol";
+
 import {BaseHook} from "v4-periphery/BaseHook.sol";
 
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
@@ -19,7 +21,7 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {IERC721} from "openzeppelin-contracts/interfaces/IERC721.sol"
 
-contract NFTAMMHook is ERC1155, BaseHook {
+contract NFTAMMHook is ERC20, BaseHook {
 
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
@@ -49,7 +51,7 @@ contract NFTAMMHook is ERC1155, BaseHook {
 
 
     constructor(IPoolManager _manager,
-                    string memory _uri) BaseHook(_manager) ERC1155() {
+                    string memory _uri) BaseHook(_manager) ERC20() {
         orderCount = 0;
 }
 
@@ -88,7 +90,6 @@ contract NFTAMMHook is ERC1155, BaseHook {
         require(address(msg.sender) != address(0));
 
         //creating the order
-
         //buy side: deposit eth into contract. delta represents the decreasing tick intervals to go down
         //add a check so that the eth deposited into the contract is == the amount of eth required to fulfill the order
         //or return it
@@ -101,14 +102,28 @@ contract NFTAMMHook is ERC1155, BaseHook {
         uint256 orderId = orderCount + 1;
 
         //creating the order
-        MMOrder memory newOrder = MMOrder(,
-                                            tick, _nftAddress);
+
+        MMOrder memory newOrder;
+        newOrder.tokenIdsToTicks = createTickMappings(tokenIds, startingSellTick, delta);
+        newOrder.startingBuyTick = startingBuyTick;
+        newOrder.startingSellTick = startingSellTick;
+        newOrder.currentTick = startingSellTick;
+        newOrder.ethBalance = msg.value;
+        newOrder.maxNumOfNFTs = maxNumOfNFTs;
+        newOrder.delta = delta;
+        newOrder.fee = fee;
+        newOrder.nftAddress = _nftAddress;
         makersToOrders[msg.sender][orderId] = newOrder;
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
         // make allowance 0
-        IERC721(newOrder.nftAddress).safeTransferFrom()
+        IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes())
+
+        //calculate wrapped token amount
+
+
+        address(this).transfer(msg.sender, )
         IERC20.(wrappedToken).allowance() // add allowance of 0 to msg.sender
 
         IERC20.(wrappedToken).transferFrom() // tokens of hook to user for escrow
@@ -134,6 +149,31 @@ contract NFTAMMHook is ERC1155, BaseHook {
                     ) external override poolManagerOnly returns (bytes4) {
         // TODO - on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
         return this.afterSwap.selector;
+    }
+
+
+    function calculateWrappedTokens(uint256 startingWeiPrice, string[] tokeniDS) internal returns(uint256) {
+        // Calculate the total value of the NFTs being sold at the starting price
+        uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
+
+        // Initialize variables
+        uint256 currentPrice = startingWeiPrice;
+        uint256 totalWrappedTokensMinted = 0;
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+        // Calculate the wrapped tokens to mint for the current NFT
+        uint256 wrappedTokensForCurrentNFT = (currentPrice * totalWrappedTokenSupply) / totalValueAtStartingPrice;
+
+        // Mint the wrapped tokens for the current NFT
+        _mintWrappedTokens(msg.sender, wrappedTokensForCurrentNFT);
+
+        // Update the total wrapped tokens minted
+        totalWrappedTokensMinted += wrappedTokensForCurrentNFT;
+
+        // Calculate the price for the next NFT on the bond curve
+        currentPrice = currentPrice * (100 - delta) / 100;
+        }
+        return currentPrice
     }
 
     // does this even work?
@@ -185,7 +225,7 @@ contract NFTAMMHook is ERC1155, BaseHook {
                     break;
                 }
             }
-            return remainingEth >= 0 ? true : false
+            return remainingEth >= 0 ? true : false;
         }
 
 
