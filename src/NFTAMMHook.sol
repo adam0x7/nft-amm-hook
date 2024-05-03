@@ -19,32 +19,45 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {IERC721} from "openzeppelin/interfaces/IERC721.sol";
 
+
+
 contract NFTAMMHook is ERC20, BaseHook {
 
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
 
-    address wrappedToken;
     address collection;
 
-    uint256 private constant ONE = 1e18;  // 1e18 to represent 1.0 with 18 decimal precision
-    uint256 private constant BASE = 100000;  // Base for 1.0001 represented as 1.0001 * 10^5 for precision
+    uint256 private constant ONE = 1e18; // 1 eth
+    uint256 private constant BASE = 100000; // Base for 1.0001 represented as 1.0001 * 10^5 for precision
     uint256 private constant ONE_HUNDRED = 100;  // For percentage calculations
 
 
     struct MMOrder {
-        mapping(uint256 => int24) tokenIdsToTicks; //nfts being sold
-        int24 startingBuyTick;
+        //mapping for the token ids to whichever tick they are priced at. this is the sell side of the order
+        mapping(uint256 => int24) tokenIdsToTicks;
         int24 startingSellTick;
+        //the price at which this order is willing to start purchasing nfts on the curve
+        int24 startingBuyTick;
+        //tracking the current price as it moves along the bond curve
         int24 currentTick;
+        //the eth that will be deposited to cover the buy orders
         uint256 ethBalance;
+        // the maximum amount of nfts that the order is willing to purchase
         uint256 maxNumOfNFTs;
+        //the percentage change at which the sell/buy orders will change. i.e. "steps". sell high buy low
         uint256 delta;
+        //the swap fee on this order for either buying or selling into the order. money is made here
         uint256 fee;
+        //collection address of the order
         address nftAddress;
     }
 
+    //mapping makers to their orders. multiple orders can be made
     mapping(address => mapping(uint256 id => MMOrder)) public makersToOrders;
+    // the wNFT balances of the makers who have made orders
+    mapping(address => uint256) public makerBalances;
+    //order id is the current orderCount
     uint256 public orderCount;
 
 
@@ -52,9 +65,10 @@ contract NFTAMMHook is ERC20, BaseHook {
         string memory name,
         string memory symbol,
         uint256 initialSupply,
+        address _collection,
         uint8 decimals) BaseHook(_manager) ERC20(name, symbol, decimals) {
         orderCount = 0;
-
+        collection = _collection;
         _mint(address(this), initialSupply);
 }
 
@@ -76,11 +90,14 @@ contract NFTAMMHook is ERC20, BaseHook {
         });
     }
 
-// @notice creating the market making order. A bid on the collection to both buy and sell nfts
-// @param _nftAddress - token address of the nft
-// @param - ids of the nfts being sold
-// @param - delta, the percent by which every order will change on the bond curve
-// @param - fee, the spread at which the maker will charge on their trades to be profitable
+    // @notice creating the market making order. A bid on the collection to both buy and sell nfts on a bond curve
+    // @param _nftAddress  address of the nft collection
+    // @param startingBuyTick  starting price to begin purchasing nfts
+    // @param startingSellTick starting price at which they will sell their nfts
+    // @param tokenIds of the nfts being sold
+    // @param delta the percent by which every order will change on the bond curve
+    // @param fee the fee at which the maker will charge on their trades to be profitable
+    // @param maxNumOfNFTs the maximum numOfNFTs that the buyer is willing to purchase
     function marketMake(
         address _nftAddress,
         int24 startingBuyTick,
@@ -90,22 +107,20 @@ contract NFTAMMHook is ERC20, BaseHook {
         uint256 fee,
         uint256 maxNumOfNFTs
     ) external payable {
+        require(_nftAddress == collection);
         require(address(msg.sender) != address(0));
-
-        //creating the order
-        //buy side: deposit eth into contract. delta represents the decreasing tick intervals to go down
-        //add a check so that the eth deposited into the contract is == the amount of eth required to fulfill the order
-        //or return it
-        uint256 startingWeiPrice = getEthPriceAtTick(int256(startingBuyTick));
-        require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length));
 
         //idea is to buy low sell high. selling tick needs to be slightly higher than buy tick
         require(startingSellTick > startingBuyTick);
 
-        uint256 orderId = orderCount + 1;
+        uint256 startingWeiPrice = getEthPriceAtTick(int256(startingBuyTick));
+        //checking whether there is enough eth deposited to cover their order
+        require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length));
+
+        orderCount++;
 
         //creating the order
-        MMOrder storage newOrder = makersToOrders[msg.sender][orderId];
+        MMOrder storage newOrder;
         for (uint256 i = 0; i < tokenIds.length; i++) {
             newOrder.tokenIdsToTicks[tokenIds[i]] = createTickMappingsForSingleToken(int24(startingSellTick), delta, i);
         }
@@ -117,39 +132,28 @@ contract NFTAMMHook is ERC20, BaseHook {
         newOrder.delta = delta;
         newOrder.fee = fee;
         newOrder.nftAddress = _nftAddress;
-        orderCount++;
+        makersToOrders[msg.sender][orderId] = newOrder;
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
-        IERC721(newOrder.nftAddress).safeTransferFrom(msg.sender, address(this), bytes(0));
-
-        //calculate wrapped token amount
-        uint256 tokensToTransfer = calculateWrappedTokens(startingWeiPrice, tokenIds, delta);
-        approve(msg.sender, 0); // allowance is 0 to prevent tokens being spent
-    }
-
-    function calculateWrappedTokens(uint256 startingWeiPrice, uint256[] calldata tokenIds, uint256 delta) internal returns (uint256) {
-        // Calculate the total value of the NFTs being sold at the starting price
-        uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
-
-        // Initialize variables
-        uint256 currentPrice = startingWeiPrice;
-        uint256 totalWrappedTokensMinted = 0;
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            // Calculate the wrapped tokens to mint for the current NFT
-            uint256 wrappedTokensForCurrentNFT = (currentPrice * totalSupply) / totalValueAtStartingPrice;
-
-            // Mint the wrapped tokens for the current NFT
-            _mint(msg.sender, wrappedTokensForCurrentNFT);
-
-            // Update the total wrapped tokens minted
-            totalWrappedTokensMinted += wrappedTokensForCurrentNFT;
-
-            // Calculate the price for the next NFT on the bond curve
-            currentPrice = currentPrice * (100 - delta) / 100;
+        IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
         }
-        return totalWrappedTokensMinted;
+
+        //update wNFT balance and add liquidity
+        addLiquidityAndDetermineShare(startingWeiPrice, tokenIds, delta);
+    }
+
+    function addLiquidityAndDetermineShare(uint256 startingWeiPrice, uint256[] calldata tokenIds, uint256 delta) internal {
+        // Calculating the total value of the NFTs being deposited in wei
+        uint256 saleOrderInWei = totalDecreasingPrice(startingWeiPrice, delta, tokenIds.length);
+        uint256 saleOrderInEth = saleOrderInWei / 1e18;
+        //for purpose of testing, each wrapped nft token == 1 ether
+        makerBalances[msg.sender] = saleOrderInEth;
+        //add liquidity here
+
+        
     }
 
     function createTickMappingsForSingleToken(int24 startingSellTick, uint256 delta, uint256 index) internal pure returns (uint24) {
@@ -158,6 +162,34 @@ contract NFTAMMHook is ERC20, BaseHook {
             currentTick = uint24(uint256(currentTick) * (100 - delta) / 100);
         }
         return currentTick;
+    }
+
+    // Function to calculate the total price of `n` items, decreasing each subsequent item's price by `delta`.
+    function totalDecreasingPrice(uint256 initialPriceInWei, uint256 delta, uint256 n) public pure returns (uint256) {
+        uint256 totalPrice = 0;
+        uint256 currentPrice = initialPriceInWei;
+
+        for (uint256 i = 0; i < n; i++) {
+            totalPrice += currentPrice;
+            // Decrease the current price by `delta` percent
+            currentPrice = currentPrice * (100 - delta) / 100;
+        }
+
+        return totalPrice;
+    }
+
+    // Function to calculate the total price of `n` items, increasing each subsequent item's price by `delta`
+    function totalIncreasingPrice(uint256 initialPrice, uint256 delta, uint256 n) public pure returns (uint256) {
+        uint256 totalPrice = 0;
+        uint256 currentPrice = initialPrice;
+
+        for (uint256 i = 0; i < n; i++) {
+            totalPrice += currentPrice;
+            // Increase the current price by `delta` percent
+            currentPrice = currentPrice * (100 + delta) / 100;
+        }
+
+        return totalPrice;
     }
 
 
@@ -182,41 +214,6 @@ contract NFTAMMHook is ERC20, BaseHook {
     }
 
 
-//    function calculateWrappedTokens(uint256 startingWeiPrice, string[] calldata tokenIds, uint256 delta) internal returns(uint256) {
-//        // Calculate the total value of the NFTs being sold at the starting price
-//        uint256 totalValueAtStartingPrice = startingWeiPrice * tokenIds.length;
-//
-//        // Initialize variables
-//        uint256 currentPrice = startingWeiPrice;
-//        uint256 totalWrappedTokensMinted = 0;
-//
-//        for (uint256 i = 0; i < tokenIds.length; i++) {
-//        // Calculate the wrapped tokens to mint for the current NFT
-//        uint256 wrappedTokensForCurrentNFT = (currentPrice * totalSupply) / totalValueAtStartingPrice;
-//
-//        // Mint the wrapped tokens for the current NFT
-//        _mint(msg.sender, wrappedTokensForCurrentNFT);
-//
-//        // Calculate the price for the next NFT on the bond curve
-//        currentPrice = currentPrice * (100 - delta) / 100;
-//        }
-//        return currentPrice;
-//    }
-//
-//    // does this even work?
-//    function createTickMappings(
-//                    uint256[] memory tokenIds,
-//                    int24 startingSellTick,
-//                    uint256 delta ) internal pure returns (mapping(uint256 => uint256) storage ticksMap) {
-//        uint256 currentTick = startingSellTick;
-//
-//
-//        for (uint256 i = 0; i < tokenIds.length; i++) {
-//            ticksMap[tokenIds[i]] = currentTick;
-//            currentTick = currentTick * (100 - delta) / 100;
-//        }
-//    }
-
     function getEthPriceAtTick(int256 tick) public pure returns (uint256) {
             uint256 result = ONE;
             uint256 factor = BASE;
@@ -236,17 +233,17 @@ contract NFTAMMHook is ERC20, BaseHook {
     function isThereEnoughEth(uint256 initialPrice,
                                 uint256 delta,
                                 uint256 totalEth,
-                                uint256 numberOfNftS) public pure returns (bool) {
+                                uint256 numberOfNFTs) public pure returns (bool) {
             uint256 remainingEth = totalEth;
             uint256 currentPrice = initialPrice;
             uint256 coveredSteps = 0;
 
-            for (uint256 i = 0; i < numberOfNftS; i++) {
+            for (uint256 i = 0; i < numberOfNFTs; i++) {
                 if (remainingEth >= currentPrice) {
                     remainingEth -= currentPrice;
                     coveredSteps++;
 
-            // Calculate next step's price
+            // Calculate next step's price on the bond curve
             currentPrice = currentPrice * (ONE_HUNDRED - delta) / ONE_HUNDRED;
             } else {
                     break;
