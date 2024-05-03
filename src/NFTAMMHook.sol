@@ -58,7 +58,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     // the wNFT balances of the makers who have made orders
     mapping(address => uint256) public makerBalances;
     //order id is the current orderCount
-    uint256 public orderCount;
+    uint256 public orderId;
 
 
     constructor(IPoolManager _manager,
@@ -67,7 +67,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         uint256 initialSupply,
         address _collection,
         uint8 decimals) BaseHook(_manager) ERC20(name, symbol, decimals) {
-        orderCount = 0;
+        orderId = 0;
         collection = _collection;
         _mint(address(this), initialSupply);
 }
@@ -117,7 +117,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         //checking whether there is enough eth deposited to cover their order
         require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length));
 
-        orderCount++;
+        orderId++;
 
         //creating the order
         MMOrder storage newOrder;
@@ -248,9 +248,5 @@ contract NFTAMMHook is ERC20, BaseHook {
             }
             return remainingEth >= 0 ? true : false;
         }
-
-
-
-
 
 }
