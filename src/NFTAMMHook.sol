@@ -36,6 +36,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     struct MMOrder {
         //mapping for the token ids to whichever tick they are priced at. this is the sell side of the order
         mapping(uint256 => int24) tokenIdsToTicks;
+        //the price at which this order will start selling nfts
         int24 startingSellTick;
         //the price at which this order is willing to start purchasing nfts on the curve
         int24 startingBuyTick;
@@ -55,6 +56,7 @@ contract NFTAMMHook is ERC20, BaseHook {
 
     //mapping makers to their orders. multiple orders can be made
     mapping(address => mapping(uint256 id => MMOrder)) public makersToOrders;
+
     // the wNFT balances of the makers who have made orders
     mapping(address => uint256) public makerBalances;
     //order id is the current orderCount
@@ -120,19 +122,19 @@ contract NFTAMMHook is ERC20, BaseHook {
         orderId++;
 
         //creating the order
-        MMOrder storage newOrder;
+        MMOrder storage order = makersToOrders[msg.sender][orderId];
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            newOrder.tokenIdsToTicks[tokenIds[i]] = createTickMappingsForSingleToken(int24(startingSellTick), delta, i);
+            int24 sellingTick = startingSellTick;
+            order.tokenIdsToTicks[tokenIds[i]] = createTickMappingsForSingleToken(sellingTick, delta, i);
         }
-        newOrder.startingBuyTick = startingBuyTick;
-        newOrder.startingSellTick = startingSellTick;
-        newOrder.currentTick = startingSellTick;
-        newOrder.ethBalance = msg.value;
-        newOrder.maxNumOfNFTs = maxNumOfNFTs;
-        newOrder.delta = delta;
-        newOrder.fee = fee;
-        newOrder.nftAddress = _nftAddress;
-        makersToOrders[msg.sender][orderId] = newOrder;
+        order.startingBuyTick = startingBuyTick;
+        order.startingSellTick = startingSellTick;
+        order.currentTick = startingSellTick;
+        order.ethBalance = msg.value;
+        order.maxNumOfNFTs = maxNumOfNFTs;
+        order.delta = delta;
+        order.fee = fee;
+        order.nftAddress = _nftAddress;
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
@@ -153,13 +155,17 @@ contract NFTAMMHook is ERC20, BaseHook {
         makerBalances[msg.sender] += saleOrderInEth;
     }
 
-    function createTickMappingsForSingleToken(int24 startingSellTick, uint256 delta, uint256 index) internal pure returns (uint24) {
-        uint24 currentTick = uint24(startingSellTick);
+    function createTickMappingsForSingleToken(int24 startingSellTick, uint256 delta, uint256 index) internal pure returns (int24) {
+        int256 currentTick = int256(startingSellTick);  // Convert to int256 for safe arithmetic
         for (uint256 i = 0; i < index; i++) {
-            currentTick = uint24(uint256(currentTick) * (100 - delta) / 100);
+            currentTick = (currentTick * int256(100 - delta)) / 100;
+            // Ensure the result fits in int24 to avoid overflow/underflow
+            require(currentTick >= type(int24).min && currentTick <= type(int24).max, "Tick value out of int24 bounds");
         }
-        return currentTick;
+        return int24(currentTick);  // Safely cast back to int24
     }
+
+
 
     // Function to calculate the total price of `n` items, decreasing each subsequent item's price by `delta`.
     function totalDecreasingPrice(uint256 initialPriceInWei, uint256 delta, uint256 n) public pure returns (uint256) {
