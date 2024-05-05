@@ -201,7 +201,7 @@ contract NFTAMMHook is ERC20, BaseHook {
                         PoolKey calldata,
                         IPoolManager.SwapParams calldata, bytes calldata) external override virtual returns (bytes4) {
         // TODO - on before swap change allowance of msg.sender and swap on pool
-        return this.beforeSwap.selecter;
+        return this.beforeSwap.selector;
     }
 
     //on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
