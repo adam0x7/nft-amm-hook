@@ -14,10 +14,15 @@ import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 
-import {PointsHook} from "../src/PointsHook.sol";
+import {NFTAMMHook} from "../src/NFTAMMHook.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
 contract PointsHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
+    
+
+    function setUp() public {
+
+    }
 
 }
