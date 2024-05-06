@@ -37,7 +37,7 @@ contract PointsHookTest is Test, Deployers {
         token = new MockERC20();
         tokenCurrency = Currency.wrap(address(token));
 
-        token.mint(address(this), 1000 ether);
+
         token.mint(address(1), 1000 ether);
 
         uint160 flags = uint160(
@@ -59,6 +59,9 @@ contract PointsHookTest is Test, Deployers {
             18
         );
 
+        token.mint(address(hook), 1000 ether);
+        vm.deal(address(hook, 1000));
+
         token.approve(address(swapRouter), type(uint256).max);
         token.approve(address(modifyLiquidityRouter), type(uint256).max);
 
@@ -70,6 +73,26 @@ contract PointsHookTest is Test, Deployers {
             SQRT_RATIO_1_1, // Initial Sqrt(P) value = 1
             ZERO_BYTES // No additional `initData`
         );
+    }
+
+    function testMarketOrderCreation() public {
+            //need to assert that user has less eth, and has deposited that eth
+            //need to assert that the user has transferred the nft
+            //need to assert that the user has minted wnft
+        int24 startingBuyTick = -1;
+        int24 startingSellTick = 1;
+
+
+
+        hook.marketMake(
+            address(collection),
+            startingBuyTick,
+            startingSellTick,
+
+        );
+
+
+
     }
 
 }

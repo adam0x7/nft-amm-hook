@@ -216,22 +216,23 @@ contract NFTAMMHook is ERC20, BaseHook {
         return this.afterSwap.selector;
     }
 
+    /// @notice Calculates the ETH price at a given tick using the TickMath library
+    /// @param tick The tick at which to get the ETH price
+    /// @return ethPrice The ETH price at the given tick
+    function getEthPriceAtTick(int24 tick) public pure returns (uint256 ethPrice) {
+        require(tick >= TickMath.MIN_TICK && tick <= TickMath.MAX_TICK, "Tick is out of range");
 
-    function getEthPriceAtTick(int256 tick) public pure returns (uint256) {
-            uint256 result = ONE;
-            uint256 factor = BASE;
+        // Get the sqrtPriceX96 from the TickMath library
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
 
-            if (tick < 0) {
-                tick = -tick;  // Make tick positive for calculation
-                factor = ONE * ONE / BASE;  // Use reciprocal for negative ticks
-            }
+        // Convert sqrtPriceX96 to the actual price ratio
+        // priceRatio = (sqrtPriceX96^2) / 2^96
+        uint256 priceRatio = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) >> 96;
 
-            for (int256 i = 0; i < tick; i++) {
-                result = result * factor / ONE;
-            }
-
-            return result;
-        }
+        // Convert priceRatio to ETH value (adjusting for the Q64.96 format)
+        ethPrice = priceRatio * ONE / 2**96;
+        return ethPrice;
+    }
 
     function isThereEnoughEth(uint256 initialPrice,
                                 uint256 delta,
