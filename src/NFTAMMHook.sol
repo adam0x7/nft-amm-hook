@@ -35,7 +35,7 @@ contract NFTAMMHook is ERC20, BaseHook {
 
     struct MMOrder {
         //mapping for the token ids to whichever tick they are priced at. this is the sell side of the order
-        mapping(uint256 => int24) tokenIdsToTicks;
+        mapping(uint256 => int24) tokenIdsToSqrtRatio;
         //the price at which this order will start selling nfts
         int24 startingSellTick;
         //the price at which this order is willing to start purchasing nfts on the curve
@@ -115,17 +115,18 @@ contract NFTAMMHook is ERC20, BaseHook {
         //idea is to buy low sell high. selling tick needs to be slightly higher than buy tick
         require(startingSellTick > startingBuyTick);
 
-        uint256 startingWeiPrice = getEthPriceAtTick(int256(startingBuyTick));
         //checking whether there is enough eth deposited to cover their order
-        require(isThereEnoughEth(startingWeiPrice, delta, msg.value * 1e18, tokenIds.length));
+        require(isThereEnoughEth(startingSellTick, delta, maxNumOfNFTs, msg.value));
 
         orderId++;
 
         //creating the order
         MMOrder storage order = makersToOrders[msg.sender][orderId];
+
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            int24 sellingTick = startingSellTick;
-            order.tokenIdsToTicks[tokenIds[i]] = createTickMappingsForSingleToken(sellingTick, delta, i);
+            // Calculate and assign the sqrt price for each token, given a number of NFTs, starting tick, and delta
+            uint160 sqrtPriceX96 = createSqrtPriceForSingleToken(startingSellTick, delta, i);
+            order.tokenIdsToSqrtPrices[tokenIds[i]] = sqrtPriceX96;
         }
         order.startingBuyTick = startingBuyTick;
         order.startingSellTick = startingSellTick;
@@ -155,15 +156,22 @@ contract NFTAMMHook is ERC20, BaseHook {
         makerBalances[msg.sender] += saleOrderInEth;
     }
 
-    function createTickMappingsForSingleToken(int24 startingSellTick, uint256 delta, uint256 index) internal pure returns (int24) {
-        int256 currentTick = int256(startingSellTick);  // Convert to int256 for safe arithmetic
-        for (uint256 i = 0; i < index; i++) {
-            currentTick = (currentTick * int256(100 - delta)) / 100;
-            // Ensure the result fits in int24 to avoid overflow/underflow
-            require(currentTick >= type(int24).min && currentTick <= type(int24).max, "Tick value out of int24 bounds");
+    function createSqrtPriceForSingleToken(int24 tick, uint256 delta, uint256 index) internal pure returns (uint160) {
+        require(tick >= TickMath.MIN_TICK && tick <= TickMath.MAX_TICK, "Tick is out of range");
+
+        int256 currentTick = tick;
+        for (uint256 i = 0; i <= index; i++) {
+            if (i != 0) {  // Skip the first iteration as no adjustment needed for the initial tick
+                currentTick -= int256(delta);  // Decrease the tick by delta
+                require(currentTick >= TickMath.MIN_TICK && currentTick <= TickMath.MAX_TICK, "Adjusted tick is out of range");
+            }
         }
-        return int24(currentTick);  // Safely cast back to int24
+
+        // Convert the adjusted tick to a sqrt price ratio
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(int24(currentTick));
+        return sqrtPriceX96;
     }
+
 
 
 
@@ -234,26 +242,27 @@ contract NFTAMMHook is ERC20, BaseHook {
         return ethPrice;
     }
 
-    function isThereEnoughEth(uint256 initialPrice,
-                                uint256 delta,
-                                uint256 totalEth,
-                                uint256 numberOfNFTs) public pure returns (bool) {
-            uint256 remainingEth = totalEth;
-            uint256 currentPrice = initialPrice;
-            uint256 coveredSteps = 0;
+    /// @notice Checks if the provided weiAmount is enough to cover the buy orders for a given number of NFTs on a bond curve.
+    /// @param tick The starting tick for the first NFT
+    /// @param delta The percentage decrease in price per NFT
+    /// @param numberOfNFTs The number of NFTs to cover
+    /// @param weiAmount The amount of wei provided to cover the orders
+    /// @return sufficient A boolean indicating whether the provided wei is enough
+    function isThereEnoughEth(int24 tick, uint256 delta, uint256 numberOfNFTs, uint256 weiAmount) public returns (bool sufficient) {
+        uint256 totalCost = 0;
+        uint256 currentPrice = getEthPriceAtTick(tick);
 
-            for (uint256 i = 0; i < numberOfNFTs; i++) {
-                if (remainingEth >= currentPrice) {
-                    remainingEth -= currentPrice;
-                    coveredSteps++;
-
-            // Calculate next step's price on the bond curve
-            currentPrice = currentPrice * (ONE_HUNDRED - delta) / ONE_HUNDRED;
-            } else {
-                    break;
-                }
-            }
-            return remainingEth >= 0 ? true : false;
+        for (uint256 i = 0; i < numberOfNFTs; i++) {
+            totalCost += currentPrice;
+            // Adjust the price for the next NFT based on the delta percentage
+            // Delta is expected to be provided as a percentage, e.g., 5 for 5%
+            currentPrice = currentPrice * (100 - delta) / 100;
         }
+
+        // Check if the total wei provided covers the total cost
+        sufficient = weiAmount >= totalCost;
+        return sufficient;
+    }
+
 
 }
