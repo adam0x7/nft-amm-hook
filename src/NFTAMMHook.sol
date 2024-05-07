@@ -139,21 +139,34 @@ contract NFTAMMHook is ERC20, BaseHook {
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
-        //TODO move this to its own function / library
         for (uint256 i = 0; i < tokenIds.length; i++) {
         IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
         }
 
-        //updating wrapped token share. user doesn't actually get the tokens so the hook has to supply liquidity for them
-        determineWrappedTokenShare(startingWeiPrice, tokenIds, delta);
+        //updating wrapped token share.user doesn't actually get the tokens so the hook has to supply liquidity for them
+        determineWrappedTokenShare(TickMath.getSqrtRatioAtTick(startingSellTick), tokenIds, delta);
     }
 
-    function determineWrappedTokenShare(uint256 startingWeiPrice, uint256[] calldata tokenIds, uint256 delta) internal {
-        // Calculating the total value of the NFTs being deposited in wei
-        uint256 saleOrderInWei = totalDecreasingPrice(startingWeiPrice, delta, tokenIds.length);
-        uint256 saleOrderInEth = saleOrderInWei / 1e18;
-        //for purpose of testing, each wrapped nft token == 1 ether
-        makerBalances[msg.sender] += saleOrderInEth;
+    function determineWrappedTokenShare(uint160 sqrtPriceX96, uint256[] calldata tokenIds, uint256 delta) internal {
+        // Convert sqrtPriceX96 to the actual price ratio (Token 0 per Token 1)
+        uint256 priceRatio = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) >> 96; // Square and adjust from Q64.96
+
+        // Calculate the total value of the NFTs being deposited, priced in Token 0 (ETH)
+        uint256 totalValueInToken0 = 0;
+        uint256 currentPriceInToken0 = priceRatio; // Start with the price of one NFT in Token 0
+
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            totalValueInToken0 += currentPriceInToken0;
+
+            // Adjust the price for the next NFT based on the delta percentage
+            currentPriceInToken0 = currentPriceInToken0 * (100 - delta) / 100;
+        }
+
+        // Calculate the equivalent amount in Ether, adjust for Q64.96 if necessary
+        uint256 totalValueInEther = totalValueInToken0 / 1e18; // Assuming the priceRatio scales up to Wei correctly
+
+        // Mint or assign the calculated Ether equivalent to the user's balance
+        makerBalances[msg.sender] += totalValueInEther;
     }
 
     function createSqrtPriceForSingleToken(int24 tick, uint256 delta, uint256 index) internal pure returns (uint160) {

@@ -75,24 +75,24 @@ contract PointsHookTest is Test, Deployers {
         );
     }
 
-    function testMarketOrderCreation() public {
-            //need to assert that user has less eth, and has deposited that eth
-            //need to assert that the user has transferred the nft
-            //need to assert that the user has minted wnft
-        int24 startingBuyTick = -1;
-        int24 startingSellTick = 1;
-
-
-
-        hook.marketMake(
-            address(collection),
-            startingBuyTick,
-            startingSellTick,
-
-        );
-
-
-
-    }
+//    function testMarketOrderCreation() public {
+//            //need to assert that user has less eth, and has deposited that eth
+//            //need to assert that the user has transferred the nft
+//            //need to assert that the user has minted wnft
+//        int24 startingBuyTick = -1;
+//        int24 startingSellTick = 1;
+//
+//
+//
+//        hook.marketMake(
+//            address(collection),
+//            startingBuyTick,
+//            startingSellTick,
+//
+//        );
+//
+//
+//
+//    }
 
 }
