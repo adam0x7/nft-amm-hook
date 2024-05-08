@@ -26,7 +26,7 @@ contract PointsHookTest is Test, Deployers {
     MockERC20 token;
     MockERC721 collection;
 
-    Currency ethCurrency = Currency.wrap(0);
+    Currency ethCurrency = Currency.NATIVE;
     Currency tokenCurrency;
 
     NFTAMMHook hook;
@@ -36,12 +36,6 @@ contract PointsHookTest is Test, Deployers {
 
     function setUp() public {
         deployFreshManagerAndRouters();
-
-        token = new MockERC20();
-        tokenCurrency = Currency.wrap(address(token));
-
-
-
 
         uint160 flags = uint160(
             Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.AFTER_SWAP_FLAG
@@ -59,14 +53,15 @@ contract PointsHookTest is Test, Deployers {
             manager,
             "Wrapped Token",
             "TEST_WRAPPED",
+            100,000,000,
+            collection,
             18
         );
 
-        token.mint(address(hook), 1000 ether);
         vm.deal(address(hook, 1000));
 
-        token.approve(address(swapRouter), type(uint256).max);
-        token.approve(address(modifyLiquidityRouter), type(uint256).max);
+        hook.approve(address(swapRouter), type(uint256).max);
+        hook.approve(address(modifyLiquidityRouter), type(uint256).max);
 
         (key, ) = initPool(
             ethCurrency, // Currency 0 = ETH
