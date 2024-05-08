@@ -34,8 +34,6 @@ contract NFTAMMHook is ERC20, BaseHook {
 
 
     struct MMOrder {
-        //mapping for the token ids to whichever tick they are priced at. this is the sell side of the order
-        mapping(uint256 => int24) tokenIdsToSqrtRatio;
         //the price at which this order will start selling nfts
         int24 startingSellTick;
         //the price at which this order is willing to start purchasing nfts on the curve
@@ -53,6 +51,9 @@ contract NFTAMMHook is ERC20, BaseHook {
         //collection address of the order
         address nftAddress;
     }
+
+
+    mapping(uint256 => uint160) public tokenIdsToSqrtRatio;
 
     //mapping makers to their orders. multiple orders can be made
     mapping(address => mapping(uint256 id => MMOrder)) public makersToOrders;
@@ -126,7 +127,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             // Calculate and assign the sqrt price for each token, given a number of NFTs, starting tick, and delta
             uint160 sqrtPriceX96 = createSqrtPriceForSingleToken(startingSellTick, delta, i);
-            order.tokenIdsToSqrtPrices[tokenIds[i]] = sqrtPriceX96;
+            tokenIdsToSqrtRatio[tokenIds[i]] = sqrtPriceX96;
         }
         order.startingBuyTick = startingBuyTick;
         order.startingSellTick = startingSellTick;
@@ -169,6 +170,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         makerBalances[msg.sender] += totalValueInEther;
     }
 
+    //TODO refactor this to have price change by sqrt not the tick
     function createSqrtPriceForSingleToken(int24 tick, uint256 delta, uint256 index) internal pure returns (uint160) {
         require(tick >= TickMath.MIN_TICK && tick <= TickMath.MAX_TICK, "Tick is out of range");
 

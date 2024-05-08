@@ -79,16 +79,13 @@ contract PointsHookTest is Test, Deployers {
     }
 
     function testMarketOrderCreation() public {
-            //need to assert that user has less eth, and has deposited that eth
-            //need to assert that the user has transferred the nft
-            //need to assert that the user has minted wnft
         int24 startingBuyTick = -1;
         int24 startingSellTick = 1;
         uint256 delta = 10;
         uint256 fee = 20;
         uint256 maxNumOfNFTsToBuy = 5;
 
-        uint256[] tokenIds = [0,1,2,3,4];
+        uint256[] memory tokenIds = [0,1,2,3,4];
 
         for(uint256 i = 0; i < tokenIds.len; i++) {
             collection.safeMint(address(this), tokenIds[i]);
