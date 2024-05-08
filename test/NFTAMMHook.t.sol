@@ -92,7 +92,7 @@ contract PointsHookTest is Test, Deployers {
     // user calls this function with the parameters, as well as the eth value for the amount they're going to deposit
         vm.deal(maker, 10);
         vm.prank(maker);
-        hook.marketMake(
+        hook.marketMake{ value: 5}(
             address(collection),
             startingBuyTick,
             startingSellTick,
@@ -100,10 +100,10 @@ contract PointsHookTest is Test, Deployers {
             delta,
             fee,
             maxNumOfNFTsToBuy
-        ){ value: 5}();
+        );
 
-       assert(hook.makerBalances(maker).len() > 0);
-        console.log(hook.makersToOrders());
+       assert(hook.makerBalances(maker) > 0);
+        console.log(hook.makersToOrders);
 
         modifyLiquidityRouter.modifyLiquidity{value: 0.003 ether}(
             key,

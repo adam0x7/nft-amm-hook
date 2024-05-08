@@ -109,7 +109,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         uint256 delta,
         uint256 fee,
         uint256 maxNumOfNFTs
-    ) external payable {
+    ) public payable {
         require(_nftAddress == collection);
         require(address(msg.sender) != address(0));
 
