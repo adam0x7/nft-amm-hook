@@ -19,7 +19,7 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {NFTAMMHook} from "../src/NFTAMMHook.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
-contract PointsHookTest is Test, Deployers {
+contract NFTAMMHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
 
 
@@ -38,14 +38,14 @@ contract PointsHookTest is Test, Deployers {
         deployFreshManagerAndRouters();
 
         uint160 flags = uint160(
-            Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.AFTER_SWAP_FLAG
+            Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_FLAG
         );
         (, bytes32 salt) = HookMiner.find(
             address(this),
             flags,
             0,
             type(NFTAMMHook).creationCode,
-            abi.encode(manager, "Wrapped Token", "TEST_WRAPPED", 18)
+            abi.encode(manager, "Wrapped Token", "TEST_WRAPPED", 100000, address(collection), 18)
         );
 
         // Deploy our hook
@@ -116,10 +116,11 @@ contract PointsHookTest is Test, Deployers {
                 tickLower: -60,
                 tickUpper: 60,
                 liquidityDelta: 1 ether
-            })
+            }),
+            "" // empty bytes
         );
 
-        assert(balanceBefore - tokenIds.length, collection.balanceOf(address(this)));
+        assert(balanceBefore - tokenIds.length == collection.balanceOf(address(this)));
     }
 
 }

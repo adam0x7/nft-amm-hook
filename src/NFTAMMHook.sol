@@ -83,11 +83,11 @@ contract NFTAMMHook is ERC20, BaseHook {
             beforeInitialize: false,
             afterInitialize: false,
             beforeAddLiquidity: false,
-            afterAddLiquidity: true,
+            afterAddLiquidity: false,
             beforeRemoveLiquidity: false,
             afterRemoveLiquidity: false,
-            beforeSwap: false,
-            afterSwap: false,
+            beforeSwap: true,
+            afterSwap: true,
             beforeDonate: false,
             afterDonate: false
         });
