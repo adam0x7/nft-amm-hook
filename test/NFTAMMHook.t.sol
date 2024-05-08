@@ -110,7 +110,7 @@ contract PointsHookTest is Test, Deployers {
        assert(hook.makerBalances(maker) > 0);
 //        console.log(hook.makersToOrders);
 
-        modifyLiquidityRouter.modifyLiquidity{value: 0.003 ether}(
+        modifyLiquidityRouter.modifyLiquidity{value: 1 ether}(
             key,
             IPoolManager.ModifyLiquidityParams({
                 tickLower: -60,
