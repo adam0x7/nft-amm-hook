@@ -22,7 +22,6 @@ import {HookMiner} from "./utils/HookMiner.sol";
 contract NFTAMMHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
 
-
     MockERC20 token;
     MockERC721 collection;
 
@@ -45,7 +44,7 @@ contract NFTAMMHookTest is Test, Deployers {
             flags,
             0,
             type(NFTAMMHook).creationCode,
-            abi.encode(manager, "Wrapped Token", "TEST_WRAPPED", 100000, address(collection), 18)
+            abi.encode(manager, "Wrapped Token", "TEST_WRAPPED", 100000000, address(collection), 18)
         );
 
         // Deploy our hook
@@ -62,6 +61,8 @@ contract NFTAMMHookTest is Test, Deployers {
 
         hook.approve(address(swapRouter), type(uint256).max);
         hook.approve(address(modifyLiquidityRouter), type(uint256).max);
+
+        tokenCurrency = Currency.wrap(address(hook));
 
         (key, ) = initPool(
             ethCurrency, // Currency 0 = ETH
