@@ -25,7 +25,6 @@ contract PointsHookTest is Test, Deployers {
 
     MockERC20 token;
     MockERC721 collection;
-    uint256[] public tokenIds;
 
     Currency ethCurrency = Currency.wrap(address(0));
     Currency tokenCurrency;
@@ -81,7 +80,13 @@ contract PointsHookTest is Test, Deployers {
         uint256 fee = 20;
         uint256 maxNumOfNFTsToBuy = 5;
 
-        tokenIds = [uint256(0), uint256(1), uint256(2), uint256(3), uint256(4)];
+        uint256[] memory tokenIds = new uint256[](5);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+        tokenIds[2] = 2;
+        tokenIds[3] = 3;
+        tokenIds[4] = 4;
+        tokenIds[5] = 5;
 
         for(uint256 i = 0; i < tokenIds.length; i++) {
             collection.safeMint(address(this), tokenIds[i]);
@@ -103,7 +108,7 @@ contract PointsHookTest is Test, Deployers {
         );
 
        assert(hook.makerBalances(maker) > 0);
-        console.log(hook.makersToOrders);
+//        console.log(hook.makersToOrders);
 
         modifyLiquidityRouter.modifyLiquidity{value: 0.003 ether}(
             key,
