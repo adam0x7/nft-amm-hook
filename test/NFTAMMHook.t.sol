@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 import {Test} from "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 import {Deployers} from "@uniswap/v4-core/test/utils/Deployers.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
@@ -30,6 +31,8 @@ contract PointsHookTest is Test, Deployers {
 
     NFTAMMHook hook;
 
+    address maker = address(1);
+
 
     function setUp() public {
         deployFreshManagerAndRouters();
@@ -38,7 +41,7 @@ contract PointsHookTest is Test, Deployers {
         tokenCurrency = Currency.wrap(address(token));
 
 
-        token.mint(address(1), 1000 ether);
+
 
         uint160 flags = uint160(
             Hooks.AFTER_ADD_LIQUIDITY_FLAG | Hooks.AFTER_SWAP_FLAG
@@ -75,24 +78,50 @@ contract PointsHookTest is Test, Deployers {
         );
     }
 
-//    function testMarketOrderCreation() public {
-//            //need to assert that user has less eth, and has deposited that eth
-//            //need to assert that the user has transferred the nft
-//            //need to assert that the user has minted wnft
-//        int24 startingBuyTick = -1;
-//        int24 startingSellTick = 1;
-//
-//
-//
-//        hook.marketMake(
-//            address(collection),
-//            startingBuyTick,
-//            startingSellTick,
-//
-//        );
-//
-//
-//
-//    }
+    function testMarketOrderCreation() public {
+            //need to assert that user has less eth, and has deposited that eth
+            //need to assert that the user has transferred the nft
+            //need to assert that the user has minted wnft
+        int24 startingBuyTick = -1;
+        int24 startingSellTick = 1;
+        uint256 delta = 10;
+        uint256 fee = 20;
+        uint256 maxNumOfNFTsToBuy = 5;
+
+        uint256[] tokenIds = [0,1,2,3,4];
+
+        for(uint256 i = 0; i < tokenIds.len; i++) {
+            collection.safeMint(address(this), tokenIds[i]);
+        }
+
+        uint256 balanceBefore = collection.balanceOf(address(this));
+
+    // user calls this function with the parameters, as well as the eth value for the amount they're going to deposit
+        vm.deal(maker, 10);
+        vm.prank(maker);
+        hook.marketMake(
+            address(collection),
+            startingBuyTick,
+            startingSellTick,
+            tokenIds,
+            delta,
+            fee,
+            maxNumOfNFTsToBuy
+        ){ value: 5}();
+
+       assert(hook.makerBalances(maker).len() > 0);
+        console.log(hook.makersToOrders());
+
+        modifyLiquidityRouter.modifyLiquidity{value: 0.003 ether}(
+            key,
+            IPoolManager.ModifyLiquidityParams({
+                tickLower: -60,
+                tickUpper: 60,
+                liquidityDelta: 1 ether
+            })
+        );
+
+        assert(balanceBefore - tokenIds.length, collection.balanceOf(address(this)));
+    }
 
 }
