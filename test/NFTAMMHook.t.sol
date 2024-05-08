@@ -26,7 +26,7 @@ contract PointsHookTest is Test, Deployers {
     MockERC20 token;
     MockERC721 collection;
 
-    Currency ethCurrency = Currency.NATIVE;
+    Currency ethCurrency = Currency.wrap(address(0));
     Currency tokenCurrency;
 
     NFTAMMHook hook;
@@ -53,12 +53,12 @@ contract PointsHookTest is Test, Deployers {
             manager,
             "Wrapped Token",
             "TEST_WRAPPED",
-            100,000,000,
-            collection,
+            100000000,
+            address(collection),
             18
         );
 
-        vm.deal(address(hook, 1000));
+        vm.deal(address(hook), 1000);
 
         hook.approve(address(swapRouter), type(uint256).max);
         hook.approve(address(modifyLiquidityRouter), type(uint256).max);
@@ -80,9 +80,9 @@ contract PointsHookTest is Test, Deployers {
         uint256 fee = 20;
         uint256 maxNumOfNFTsToBuy = 5;
 
-        uint256[] memory tokenIds = [0,1,2,3,4];
+        uint256[5] memory tokenIds = [0, 1, 2, 3, 4];
 
-        for(uint256 i = 0; i < tokenIds.len; i++) {
+        for(uint256 i = 0; i < tokenIds.length; i++) {
             collection.safeMint(address(this), tokenIds[i]);
         }
 
