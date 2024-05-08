@@ -25,6 +25,7 @@ contract PointsHookTest is Test, Deployers {
 
     MockERC20 token;
     MockERC721 collection;
+    uint256[] public tokenIds;
 
     Currency ethCurrency = Currency.wrap(address(0));
     Currency tokenCurrency;
@@ -80,7 +81,7 @@ contract PointsHookTest is Test, Deployers {
         uint256 fee = 20;
         uint256 maxNumOfNFTsToBuy = 5;
 
-        uint256[5] memory tokenIds = [0, 1, 2, 3, 4];
+        tokenIds = [uint256(0), uint256(1), uint256(2), uint256(3), uint256(4)];
 
         for(uint256 i = 0; i < tokenIds.length; i++) {
             collection.safeMint(address(this), tokenIds[i]);
