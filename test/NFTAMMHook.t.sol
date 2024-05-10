@@ -87,7 +87,6 @@ contract NFTAMMHookTest is Test, Deployers {
         tokenIds[2] = 2;
         tokenIds[3] = 3;
         tokenIds[4] = 4;
-        tokenIds[5] = 5;
 
         for(uint256 i = 0; i < tokenIds.length; i++) {
             collection.safeMint(address(this), tokenIds[i]);
