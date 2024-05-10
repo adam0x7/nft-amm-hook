@@ -104,6 +104,9 @@ contract NFTAMMHookTest is Test, Deployers {
         tokenIds[4] = 4;
     // user calls this function with the parameters, as well as the eth value for the amount they're going to deposit
         vm.deal(maker, 10);
+
+        vm.prank(maker);
+        collection.setApprovalForAll(address(hook), true);
         vm.prank(maker);
         hook.marketMake{ value: 5}(
             address(collection),

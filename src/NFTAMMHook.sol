@@ -19,6 +19,8 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {IERC721} from "openzeppelin/interfaces/IERC721.sol";
 
+import "forge-std/console.sol";
+
 
 
 contract NFTAMMHook is ERC20, BaseHook {
@@ -141,6 +143,7 @@ contract NFTAMMHook is ERC20, BaseHook {
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
         for (uint256 i = 0; i < tokenIds.length; i++) {
+            console.log("OWNER", msg.sender);
         IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
         }
 
@@ -263,10 +266,15 @@ contract NFTAMMHook is ERC20, BaseHook {
     /// @param numberOfNFTs The number of NFTs to cover
     /// @param weiAmount The amount of wei provided to cover the orders
     /// @return sufficient A boolean indicating whether the provided wei is enough
+
+    //this is wrong, need to change process
+    //figure out the price of 1 wei in that pool at
     function isThereEnoughEth(int24 tick, uint256 delta, uint256 numberOfNFTs, uint256 weiAmount) public returns (bool sufficient) {
         require(weiAmount > 0, "NO ETH");
         uint256 totalCost = 0;
         uint256 currentPrice = getEthPriceAtTick(tick);
+        uint256 totalEth = (weiAmount * 10e18) * currentPrice;
+
 
         for (uint256 i = 0; i < numberOfNFTs; i++) {
             totalCost += currentPrice;
@@ -276,7 +284,9 @@ contract NFTAMMHook is ERC20, BaseHook {
         }
 
         // Check if the total wei provided covers the total cost
-        sufficient = weiAmount >= totalCost;
+        sufficient = totalEth >= totalCost;
+
+
         return sufficient;
     }
 
