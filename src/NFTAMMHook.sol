@@ -19,11 +19,12 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 
 import {IERC721} from "openzeppelin/interfaces/IERC721.sol";
 
+
 import "forge-std/console.sol";
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 
-
-contract NFTAMMHook is ERC20, BaseHook {
+contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
     using PoolIdLibrary for PoolKey;
     using CurrencyLibrary for Currency;
@@ -174,7 +175,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     }
 
     //TODO refactor this to have price change by sqrt not the tick
-    function createSqrtPriceForSingleToken(int24 tick, uint256 delta, uint256 index) internal pure returns (uint160) {
+    function createSqrtPriceForSingleToken(int24 tick, uint256 delta, uint256 index) internal view returns (uint160) {
         require(tick >= TickMath.MIN_TICK && tick <= TickMath.MAX_TICK, "Tick is out of range");
 
         int256 currentTick = tick;
@@ -187,6 +188,8 @@ contract NFTAMMHook is ERC20, BaseHook {
 
         // Convert the adjusted tick to a sqrt price ratio
         uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(int24(currentTick));
+
+        console.log("sqrt price", sqrtPriceX96);
         return sqrtPriceX96;
     }
 
@@ -288,6 +291,15 @@ contract NFTAMMHook is ERC20, BaseHook {
 
 
         return sufficient;
+    }
+
+    function onERC721Received(
+        address,
+        address,
+        uint256,
+        bytes memory
+    ) public virtual override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
 
