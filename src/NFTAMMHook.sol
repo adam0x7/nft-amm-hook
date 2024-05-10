@@ -110,14 +110,14 @@ contract NFTAMMHook is ERC20, BaseHook {
         uint256 fee,
         uint256 maxNumOfNFTs
     ) public payable {
-        require(_nftAddress == collection);
-        require(address(msg.sender) != address(0));
+        require(_nftAddress == collection, "Collection is incorrect");
+        require(address(msg.sender) != address(0), "msg.sender is not the zero address");
 
         //idea is to buy low sell high. selling tick needs to be slightly higher than buy tick
-        require(startingSellTick > startingBuyTick);
+        require(startingSellTick > startingBuyTick, "sell tick is less than or equal to buy tick");
 
         //checking whether there is enough eth deposited to cover their order
-        require(isThereEnoughEth(startingSellTick, delta, maxNumOfNFTs, msg.value));
+        require(isThereEnoughEth(startingSellTick, delta, maxNumOfNFTs, msg.value), "there is not enough eth");
 
         orderId++;
 
@@ -264,6 +264,7 @@ contract NFTAMMHook is ERC20, BaseHook {
     /// @param weiAmount The amount of wei provided to cover the orders
     /// @return sufficient A boolean indicating whether the provided wei is enough
     function isThereEnoughEth(int24 tick, uint256 delta, uint256 numberOfNFTs, uint256 weiAmount) public returns (bool sufficient) {
+        require(weiAmount > 0, "NO ETH");
         uint256 totalCost = 0;
         uint256 currentPrice = getEthPriceAtTick(tick);
 

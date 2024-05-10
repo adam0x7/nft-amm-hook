@@ -23,7 +23,7 @@ contract NFTAMMHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
 
     MockERC20 token;
-    MockERC721 collection;
+    MockERC721 collection = new MockERC721("Wrapped NFT", "wNFT");
 
     Currency ethCurrency = Currency.wrap(address(0));
     Currency tokenCurrency;
@@ -35,6 +35,18 @@ contract NFTAMMHookTest is Test, Deployers {
 
     function setUp() public {
         deployFreshManagerAndRouters();
+
+        uint256[] memory tokenIds = new uint256[](5);
+        tokenIds[0] = 0;
+        tokenIds[1] = 1;
+        tokenIds[2] = 2;
+        tokenIds[3] = 3;
+        tokenIds[4] = 4;
+
+        for(uint256 i = 0; i < tokenIds.length; i++) {
+            vm.prank(maker);
+            collection.safeMint(address(maker), tokenIds[i]);
+        }
 
         uint160 flags = uint160(
             Hooks.AFTER_SWAP_FLAG | Hooks.BEFORE_SWAP_FLAG
@@ -81,19 +93,15 @@ contract NFTAMMHookTest is Test, Deployers {
         uint256 fee = 20;
         uint256 maxNumOfNFTsToBuy = 5;
 
+        uint256 balanceBefore = collection.balanceOf(address(maker));
+
+        //redundant tokenIds
         uint256[] memory tokenIds = new uint256[](5);
         tokenIds[0] = 0;
         tokenIds[1] = 1;
         tokenIds[2] = 2;
         tokenIds[3] = 3;
         tokenIds[4] = 4;
-
-        for(uint256 i = 0; i < tokenIds.length; i++) {
-            collection.safeMint(address(this), tokenIds[i]);
-        }
-
-        uint256 balanceBefore = collection.balanceOf(address(this));
-
     // user calls this function with the parameters, as well as the eth value for the amount they're going to deposit
         vm.deal(maker, 10);
         vm.prank(maker);
@@ -120,7 +128,7 @@ contract NFTAMMHookTest is Test, Deployers {
             "" // empty bytes
         );
 
-        assert(balanceBefore - tokenIds.length == collection.balanceOf(address(this)));
+    assert(balanceBefore - tokenIds.length == collection.balanceOf(address(maker)));
     }
 
 }
