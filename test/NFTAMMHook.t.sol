@@ -120,7 +120,7 @@ contract NFTAMMHookTest is Test, Deployers {
 
        assert(hook.makerBalances(maker) > 0);
 //        console.log(hook.makersToOrders);
-
+        vm.prank(address(hook));
         modifyLiquidityRouter.modifyLiquidity{value: 1 ether}(
             key,
             IPoolManager.ModifyLiquidityParams({

@@ -24,6 +24,7 @@ import "forge-std/console.sol";
 import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 
+
 contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
     using PoolIdLibrary for PoolKey;
@@ -143,13 +144,18 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
         //transfer nfts to hook from order
         //mint wrapped tokens to user according to wei price
+        console.log("SENDER BALANCE BEFORE HAND", IERC721(collection).balanceOf(address(msg.sender)));
         for (uint256 i = 0; i < tokenIds.length; i++) {
-            console.log("OWNER", msg.sender);
-        IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
+            console.log("tokens", tokenIds[i]);
+                IERC721(collection).safeTransferFrom(msg.sender, address(this), tokenIds[i]);
+
         }
 
+        console.log("NFT BALANCE:" , IERC721(collection).balanceOf(address(this)));
+        console.log("SENDER BALANCE:" , IERC721(collection).balanceOf(address(msg.sender)));
         //updating wrapped token share.user doesn't actually get the tokens so the hook has to supply liquidity for them
         determineWrappedTokenShare(TickMath.getSqrtRatioAtTick(startingSellTick), tokenIds, delta);
+
     }
 
     function determineWrappedTokenShare(uint160 sqrtPriceX96, uint256[] calldata tokenIds, uint256 delta) internal {
@@ -171,27 +177,28 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         uint256 totalValueInEther = totalValueInToken0 / 1e18; // Assuming the priceRatio scales up to Wei correctly
 
         // Mint or assign the calculated Ether equivalent to the user's balance
+        console.log("total eth value", totalValueInEther);
         makerBalances[msg.sender] += totalValueInEther;
     }
 
-    //TODO refactor this to have price change by sqrt not the tick
     function createSqrtPriceForSingleToken(int24 tick, uint256 delta, uint256 index) internal view returns (uint160) {
         require(tick >= TickMath.MIN_TICK && tick <= TickMath.MAX_TICK, "Tick is out of range");
 
-        int256 currentTick = tick;
-        for (uint256 i = 0; i <= index; i++) {
-            if (i != 0) {  // Skip the first iteration as no adjustment needed for the initial tick
-                currentTick -= int256(delta);  // Decrease the tick by delta
-                require(currentTick >= TickMath.MIN_TICK && currentTick <= TickMath.MAX_TICK, "Adjusted tick is out of range");
-            }
+        // Convert the initial tick to a sqrt price ratio
+        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(tick);
+
+        // Apply the percentage decrease for each subsequent token
+        for (uint256 i = 0; i < index; i++) {
+            // Calculate the new price as a percentage decrease
+            uint256 reducedPrice = uint256(sqrtPriceX96) * (100 - delta) / 100;
+            // Safely cast it back to uint160, assuming the result is within valid bounds
+            sqrtPriceX96 = uint160(reducedPrice);
         }
 
-        // Convert the adjusted tick to a sqrt price ratio
-        uint160 sqrtPriceX96 = TickMath.getSqrtRatioAtTick(int24(currentTick));
-
-        console.log("sqrt price", sqrtPriceX96);
+        console.log("Final sqrt price", sqrtPriceX96);
         return sqrtPriceX96;
     }
+
 
 
 
