@@ -19,6 +19,11 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {NFTAMMHook} from "../src/NFTAMMHook.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
+//TODO get contract to build
+
+
+import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
+
 contract NFTAMMHookTest is Test, Deployers {
     using CurrencyLibrary for Currency;
 
@@ -31,6 +36,9 @@ contract NFTAMMHookTest is Test, Deployers {
     NFTAMMHook hook;
 
     address maker = address(1);
+
+    PoolId id;
+
 
 
     function setUp() public {
@@ -69,14 +77,14 @@ contract NFTAMMHookTest is Test, Deployers {
             18
         );
 
-        vm.deal(address(hook), 1000);
+        vm.deal(address(hook), 10000000000000000000000000000000000000000000);
 
         hook.approve(address(swapRouter), type(uint256).max);
         hook.approve(address(modifyLiquidityRouter), type(uint256).max);
 
         tokenCurrency = Currency.wrap(address(hook));
 
-        (key, ) = initPool(
+        (key, id) = initPool(
             ethCurrency, // Currency 0 = ETH
             tokenCurrency, // Currency 1 = TOKEN
             hook, // Hook Contract
@@ -87,8 +95,8 @@ contract NFTAMMHookTest is Test, Deployers {
     }
 
     function testMarketOrderCreation() public {
-        int24 startingBuyTick = -1;
-        int24 startingSellTick = 1;
+        int24 startingBuyTick = -60;
+        int24 startingSellTick = 60;
         uint256 delta = 10;
         uint256 fee = 20;
         uint256 maxNumOfNFTsToBuy = 5;
@@ -102,8 +110,8 @@ contract NFTAMMHookTest is Test, Deployers {
         tokenIds[2] = 2;
         tokenIds[3] = 3;
         tokenIds[4] = 4;
-    // user calls this function with the parameters, as well as the eth value for the amount they're going to deposit
-        vm.deal(maker, 10);
+
+        vm.deal(maker, 10e18);
 
         vm.prank(maker);
         collection.setApprovalForAll(address(hook), true);
@@ -119,14 +127,38 @@ contract NFTAMMHookTest is Test, Deployers {
         );
 
        assert(hook.makerBalances(maker) > 0);
-//        console.log(hook.makersToOrders);
+        //how much liquidity do i add to my pool?
+        //the user deposits x amount of eth, and y amount of wrapped token is assigned as a balance in said pool
+        //what does that total into eth to add to the pool? what is the liquidity delta?
+        // the amount of liquidity to add us the eth deposit and the token deposit
+
+        // Calculate sqrt price ratios for your ticks
+        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(startingBuyTick);
+        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(startingSellTick);
+
+        // Amount of ETH and wNFTs (converted to ETH value)
+        uint256 amount0 = msg.value; // ETH sent with the transaction
+        uint256 amount1 = hook.determineWrappedTokenShare(TickMath.getSqrtRatioAtTick(startingSellTick), tokenIds, delta); // wNFTs in ETH value
+
+        //getting current slot
+        (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
+        // Calculate liquidity to add
+        uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
+            currentSqrtPrice, // current pool sqrt price (needs to be obtained or calculated)
+            sqrtRatioAX96,       // Lower tick sqrt price
+            sqrtRatioBX96,       // Upper tick sqrt price
+            amount0,             // ETH amount
+            amount1              // wNFT amount (in ETH equivalent)
+        );
+
         vm.prank(address(hook));
-        modifyLiquidityRouter.modifyLiquidity{value: 1 ether}(
+
+        modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
             key,
             IPoolManager.ModifyLiquidityParams({
                 tickLower: -60,
                 tickUpper: 60,
-                liquidityDelta: 1 ether
+                liquidityDelta: liquidityToAdd
             }),
             "" // empty bytes
         );
@@ -135,3 +167,6 @@ contract NFTAMMHookTest is Test, Deployers {
     }
 
 }
+
+
+
