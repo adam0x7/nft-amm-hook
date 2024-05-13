@@ -131,8 +131,8 @@ contract NFTAMMHookTest is Test, Deployers {
         uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(startingBuyTick);
         uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(startingSellTick);
 
-        uint256 amount0 = 5;
-        uint256 amount1 = hook.makerBalances(maker); // wNFTs in ETH value
+        uint256 amount0 = 5; // eth deposited from market making order
+        uint256 amount1 = hook.makerBalances(maker); // amount of wrapped tokens for NFT measured in eth. calculated in market maker order
 
         uint160 currentSqrtPrice;
         int24 currentTick;
@@ -140,7 +140,7 @@ contract NFTAMMHookTest is Test, Deployers {
         (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
 
         uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
-            currentSqrtPrice, // current pool sqrt price (needs to be obtained or calculated)
+            currentSqrtPrice,
             sqrtRatioAX96,       // Lower tick sqrt price
             sqrtRatioBX96,       // Upper tick sqrt price
             amount0,             // ETH amount
