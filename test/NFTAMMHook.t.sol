@@ -19,7 +19,7 @@ import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {NFTAMMHook} from "../src/NFTAMMHook.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
-//TODO get contract to build
+import {PoolId} from "v4-core/types/PoolId.sol";
 
 
 import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
@@ -137,10 +137,13 @@ contract NFTAMMHookTest is Test, Deployers {
         uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(startingSellTick);
 
         // Amount of ETH and wNFTs (converted to ETH value)
-        uint256 amount0 = msg.value; // ETH sent with the transaction
-        uint256 amount1 = hook.determineWrappedTokenShare(TickMath.getSqrtRatioAtTick(startingSellTick), tokenIds, delta); // wNFTs in ETH value
+        uint256 amount0 = 5; // ETH sent with the transaction
+        uint256 amount1 = hook.makerBalances(maker); // wNFTs in ETH value
 
         //getting current slot
+        uint160 currentSqrtPrice;
+        int24 currentTick;
+        uint24 swapFee;
         (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
         // Calculate liquidity to add
         uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
@@ -153,12 +156,15 @@ contract NFTAMMHookTest is Test, Deployers {
 
         vm.prank(address(hook));
 
-        modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
+        uint256 liquidityToAddUint256 = uint256(liquidityToAdd);
+        int256 liquidityToAddInt256 = int256(liquidityToAddUint256);
+
+    modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
             key,
             IPoolManager.ModifyLiquidityParams({
                 tickLower: -60,
                 tickUpper: 60,
-                liquidityDelta: liquidityToAdd
+                liquidityDelta: liquidityToAddInt256
             }),
             "" // empty bytes
         );
