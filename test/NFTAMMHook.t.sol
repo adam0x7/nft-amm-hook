@@ -127,25 +127,18 @@ contract NFTAMMHookTest is Test, Deployers {
         );
 
        assert(hook.makerBalances(maker) > 0);
-        //how much liquidity do i add to my pool?
-        //the user deposits x amount of eth, and y amount of wrapped token is assigned as a balance in said pool
-        //what does that total into eth to add to the pool? what is the liquidity delta?
-        // the amount of liquidity to add us the eth deposit and the token deposit
 
-        // Calculate sqrt price ratios for your ticks
         uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(startingBuyTick);
         uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(startingSellTick);
 
-        // Amount of ETH and wNFTs (converted to ETH value)
-        uint256 amount0 = 5; // ETH sent with the transaction
+        uint256 amount0 = 5;
         uint256 amount1 = hook.makerBalances(maker); // wNFTs in ETH value
 
-        //getting current slot
         uint160 currentSqrtPrice;
         int24 currentTick;
         uint24 swapFee;
         (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
-        // Calculate liquidity to add
+
         uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
             currentSqrtPrice, // current pool sqrt price (needs to be obtained or calculated)
             sqrtRatioAX96,       // Lower tick sqrt price
