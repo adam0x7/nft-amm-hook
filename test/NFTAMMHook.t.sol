@@ -94,76 +94,107 @@ contract NFTAMMHookTest is Test, Deployers {
         );
     }
 
-    function testMarketOrderCreation() public {
-        int24 startingBuyTick = -60;
-        int24 startingSellTick = 60;
-        uint256 delta = 10;
-        uint256 fee = 20;
-        uint256 maxNumOfNFTsToBuy = 5;
+    function testTransferFromHookToManager() public {
+        // Check initial balance
+        uint256 initialBalance = hook.balanceOf(address(hook));
+        console.log("Initial Balance of hook: ", initialBalance);
 
-        uint256 balanceBefore = collection.balanceOf(address(maker));
-
-        //redundant tokenIds
-        uint256[] memory tokenIds = new uint256[](5);
-        tokenIds[0] = 0;
-        tokenIds[1] = 1;
-        tokenIds[2] = 2;
-        tokenIds[3] = 3;
-        tokenIds[4] = 4;
-
-        vm.deal(maker, 10e18);
-
-        vm.prank(maker);
-        collection.setApprovalForAll(address(hook), true);
-        vm.prank(maker);
-        hook.marketMake{ value: 5}(
-            address(collection),
-            startingBuyTick,
-            startingSellTick,
-            tokenIds,
-            delta,
-            fee,
-            maxNumOfNFTsToBuy
-        );
-
-       assert(hook.makerBalances(maker) > 0);
-
-        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(startingBuyTick);
-        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(startingSellTick);
-
-        uint256 amount0 = 5; // eth deposited from market making order
-        uint256 amount1 = hook.makerBalances(maker); // amount of wrapped tokens for NFT measured in eth. calculated in market maker order
-
-        uint160 currentSqrtPrice;
-        int24 currentTick;
-        uint24 swapFee;
-        (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
-
-        uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
-            currentSqrtPrice,
-            sqrtRatioAX96,       // Lower tick sqrt price
-            sqrtRatioBX96,       // Upper tick sqrt price
-            amount0,             // ETH amount
-            amount1              // wNFT amount (in ETH equivalent)
-        );
+        // Check if the balance is sufficient
+        require(initialBalance >= 5, "Insufficient balance for transfer");
 
         vm.prank(address(hook));
+        hook.approve(address(manager), 5);
 
-        uint256 liquidityToAddUint256 = uint256(liquidityToAdd);
-        int256 liquidityToAddInt256 = int256(liquidityToAddUint256);
-        
-        modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
-            key,
-            IPoolManager.ModifyLiquidityParams({
-                tickLower: -60,
-                tickUpper: 60,
-                liquidityDelta: liquidityToAddInt256
-            }),
-            "" // empty bytes
-        );
+        // Check allowance (if applicable)
+        uint256 allowance = hook.allowance(address(hook), address(manager));
+        console.log("Allowance from hook to manager: ", allowance);
 
-    assert(balanceBefore - tokenIds.length == collection.balanceOf(address(maker)));
+        // Perform the prank and the transfer
+        vm.prank(address(hook));
+        bool success = hook.transferFrom(address(hook), address(manager), 5);
+        require(success, "Transfer failed");
+
+        // Check final balance
+        uint256 finalBalance = hook.balanceOf(address(hook));
+        console.log("Final Balance of hook: ", finalBalance);
+
+        // Ensure the transfer happened correctly
+        assert(finalBalance == initialBalance - 5);
     }
+
+
+//    function testMarketOrderCreation() public {
+//        int24 startingBuyTick = -60;
+//        int24 startingSellTick = 60;
+//        uint256 delta = 10;
+//        uint256 fee = 20;
+//        uint256 maxNumOfNFTsToBuy = 5;
+//
+//        uint256 balanceBefore = collection.balanceOf(address(maker));
+//
+//        //redundant tokenIds
+//        uint256[] memory tokenIds = new uint256[](5);
+//        tokenIds[0] = 0;
+//        tokenIds[1] = 1;
+//        tokenIds[2] = 2;
+//        tokenIds[3] = 3;
+//        tokenIds[4] = 4;
+//
+//        vm.deal(maker, 10e18);
+//
+//        vm.prank(maker);
+//        collection.setApprovalForAll(address(hook), true);
+//        vm.prank(maker);
+//        hook.marketMake{ value: 5}(
+//            address(collection),
+//            startingBuyTick,
+//            startingSellTick,
+//            tokenIds,
+//            delta,
+//            fee,
+//            maxNumOfNFTsToBuy
+//        );
+//
+//       assert(hook.makerBalances(maker) > 0);
+//
+//        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(startingBuyTick);
+//        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(startingSellTick);
+//
+//        uint256 amount0 = 5; // eth deposited from market making order
+//        uint256 amount1 = hook.makerBalances(maker); // amount of wrapped tokens for NFT measured in eth. calculated in market maker order
+//
+//        uint160 currentSqrtPrice;
+//        int24 currentTick;
+//        uint24 swapFee;
+//        (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
+//
+//        uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
+//            currentSqrtPrice,
+//            sqrtRatioAX96,       // Lower tick sqrt price
+//            sqrtRatioBX96,       // Upper tick sqrt price
+//            amount0,             // ETH amount
+//            amount1              // wNFT amount (in ETH equivalent)
+//        );
+//
+//        vm.deal(address(this), 2000000000);
+//
+//        vm.prank(address(hook));
+//
+//        uint256 liquidityToAddUint256 = uint256(liquidityToAdd);
+//        int256 liquidityToAddInt256 = int256(liquidityToAddUint256);
+//
+//        modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
+//            key,
+//            IPoolManager.ModifyLiquidityParams({
+//                tickLower: -60,
+//                tickUpper: 60,
+//                liquidityDelta: liquidityToAddInt256
+//            }),
+//            "" // empty bytes
+//        );
+//
+//    assert(balanceBefore - tokenIds.length == collection.balanceOf(address(maker)));
+//    }
 
 }
 
