@@ -103,7 +103,7 @@ contract NFTAMMHookTest is Test, Deployers {
         require(initialBalance >= 5, "Insufficient balance for transfer");
 
         vm.prank(address(hook));
-        hook.approve(address(manager), 5);
+        hook.approve(address(manager), 10);
 
         // Check allowance (if applicable)
         uint256 allowance = hook.allowance(address(hook), address(manager));
