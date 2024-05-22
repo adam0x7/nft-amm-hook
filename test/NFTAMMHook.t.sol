@@ -151,8 +151,6 @@ contract NFTAMMHookTest is Test, Deployers {
 
         uint256 liquidityToAddUint256 = uint256(liquidityToAdd);
         int256 liquidityToAddInt256 = int256(liquidityToAddUint256);
-
-        hook.approve(address(manager), 100000000);
         
         modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
             key,
