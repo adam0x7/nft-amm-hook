@@ -153,13 +153,8 @@ contract NFTAMMHookTest is Test, Deployers {
         int256 liquidityToAddInt256 = int256(liquidityToAddUint256);
 
         hook.approve(address(manager), 100000000);
-
-        console.log("ALLOWANCE", hook.allowance(address(hook), address(manager)));
-
-
-
-    vm.prank(address(hook));
-    modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
+        
+        modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
             key,
             IPoolManager.ModifyLiquidityParams({
                 tickLower: -60,
