@@ -56,6 +56,16 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         address nftAddress;
     }
 
+    struct BidOrder {
+        bool immediate;
+
+        uint256 ethValue;
+
+        uint256 bidId;
+
+        int24 bidTick;
+    }
+
 
     mapping(uint256 => uint160) public tokenIdsToSqrtRatio;
 
@@ -156,6 +166,17 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         //updating wrapped token share.user doesn't actually get the tokens so the hook has to supply liquidity for them
         determineWrappedTokenShare(TickMath.getSqrtRatioAtTick(startingSellTick), tokenIds, delta);
 
+    }
+
+
+    function createBuyBidOrder(uint256 _orderId, uint256 nftId, address _maker) external payable returns(BidOrder) {
+        require(msg.value > 0, "Deposit amount must be greater than zero");
+        MMOrder storage order = makersToOrders[maker][orderId];
+
+        require(msg.value > getEthPriceAtTick(order.currentTick));
+
+        BidOrder bidOrder = BidOrder(true, msg.value, nftId, order.currentTick );
+        return bidOrder;
     }
 
     fallback() external payable {}

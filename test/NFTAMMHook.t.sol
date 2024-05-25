@@ -180,5 +180,19 @@ contract NFTAMMHookTest is Test, Deployers {
 
 }
 
+    //here this tests a trader is able to buy an NFT outright
+    // 1. The user deposits eth into the hook contract for the nft that they want
+    // 2. A swap is triggered on said pool for the eth for some of the token, the user's balance is updated in the hook contract.
+    // 3. On after swap, the wrapped tokens are transfered back to the hook contract and the nft is transferred to the user. Nft details are in calldata
+    function testNFTPurchase() {
+
+        address trader = address(0x2);
+
+        hook.
+
+
+
+    }
+
 
 
