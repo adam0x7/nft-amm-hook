@@ -180,18 +180,66 @@ contract NFTAMMHookTest is Test, Deployers {
 
 }
 
-    //here this tests a trader is able to buy an NFT outright
-    // 1. The user deposits eth into the hook contract for the nft that they want
-    // 2. A swap is triggered on said pool for the eth for some of the token, the user's balance is updated in the hook contract.
-    // 3. On after swap, the wrapped tokens are transfered back to the hook contract and the nft is transferred to the user. Nft details are in calldata
-    function testNFTPurchase() {
-
+   function testNFTPurchase() public {
         address trader = address(0x2);
+        uint256 initialTraderBalance = trader.balance;
+        uint256 initialMakerBalance = maker.balance;
+        uint256 nftId = 0;
 
-        hook.
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: true,
+            amountSpecified: -1 ether,
+            sqrtPriceLimitX96: TickMath.MIN_SQRT_RATIO + 1
+        });
 
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            withdrawTokens: true,
+            settleUsingTransfer: true,
+            currencyAlreadySent: false
+        });
 
+        bytes memory order = hook.createBuyBidOrder(1, nftId, maker);
 
+        vm.deal(trader, 1 ether);
+        vm.prank(trader);
+        swapRouter.swap{value: 1 ether}(key, params, testSettings, order);
+
+        // Assertions for buying the NFT
+        assertEq(IERC721(collection).ownerOf(nftId), trader, "NFT should be transferred to the trader");
+        assertEq(maker.balance, initialMakerBalance + 1 ether, "Maker should receive the Ether payment");
+        assertEq(trader.balance, initialTraderBalance - 1 ether, "Trader's balance should be decreased by the Ether amount");
+    }
+
+    function testNFTSale() public {
+        address trader = address(0x2);
+        uint256 initialTraderBalance = trader.balance;
+        uint256 initialMakerBalance = maker.balance;
+        uint256 nftId = 0;
+
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: false,
+            amountSpecified: 1 ether,
+            sqrtPriceLimitX96: TickMath.MAX_SQRT_RATIO - 1
+        });
+
+        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+            withdrawTokens: true,
+            settleUsingTransfer: true,
+            currencyAlreadySent: false
+        });
+
+        bytes memory order = hook.createBuyBidOrder(1, nftId, maker);
+
+        vm.prank(trader);
+        IERC721(collection).safeTransferFrom(trader, address(hook), nftId);
+
+        vm.prank(hook);
+        swapRouter.swap(key, params, testSettings, order);
+
+        // Assertions for selling the NFT
+        assertEq(IERC721(collection).ownerOf(nftId), maker, "NFT should be transferred to the maker");
+        assertEq(trader.balance, initialTraderBalance + 1 ether, "Trader should receive the Ether payment");
+        assertEq(hook.ethBalance(), initialMakerBalance - 1 ether, "Hook's Ether balance should be decreased by the Ether amount");
     }
 
 

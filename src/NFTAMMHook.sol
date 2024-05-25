@@ -169,14 +169,14 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
     }
 
 
-    function createBuyBidOrder(uint256 _orderId, uint256 nftId, address _maker) external payable returns(BidOrder) {
+    function createBuyBidOrder(uint256 _orderId, uint256 nftId, address _maker) external payable returns(bytes memory) {
         require(msg.value > 0, "Deposit amount must be greater than zero");
         MMOrder storage order = makersToOrders[maker][orderId];
 
         require(msg.value > getEthPriceAtTick(order.currentTick));
 
         BidOrder bidOrder = BidOrder(true, msg.value, nftId, order.currentTick );
-        return bidOrder;
+        return abi.encode(bidOrder);
     }
 
     fallback() external payable {}
@@ -265,13 +265,57 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
     //on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
     function afterSwap(
-                    address sender,
-                    PoolKey calldata key,
-                    IPoolManager.SwapParams calldata params,
-                    BalanceDelta,
-                    bytes calldata
-                    ) external override poolManagerOnly returns (bytes4) {
-        // TODO - on afterswap, burn tokens of swap, transfer nft to sender, transfer eth to seller
+        address sender,
+        PoolKey calldata key,
+        IPoolManager.SwapParams calldata params,
+        BalanceDelta,
+        bytes calldata bidOrderData
+    ) external override poolManagerOnly returns (bytes4) {
+        // Decode the bidOrder from the calldata
+        BidOrder memory bidOrder = abi.decode(bidOrderData, (BidOrder));
+
+        // Check if the swap was successful
+        if (bidOrder.ethValue <= uint256(params.amountSpecified)) {
+            // Burn the corresponding amount of wrapped tokens
+            _burn(address(this), bidOrder.ethValue);
+
+            MMOrder storage order = makersToOrders[bidOrder.maker][bidOrder.orderId];
+
+            if (params.zeroForOne) {
+                // Buying NFTs (zeroForOne = true)
+                // Transfer the NFT to the sender (buyer)
+                IERC721(collection).safeTransferFrom(address(this), sender, bidOrder.nftId);
+
+                // Transfer the Ether to the maker (seller)
+                payable(bidOrder.maker).transfer(bidOrder.ethValue);
+
+                // Update the startingSellTick on the bonding curve
+                uint160 currentSqrtPriceX96 = TickMath.getSqrtRatioAtTick(order.startingSellTick);
+                uint256 newSqrtPriceX96 = uint256(currentSqrtPriceX96) * (100 - order.delta) / 100;
+                int24 newStartingSellTick = TickMath.getTickAtSqrtRatio(uint160(newSqrtPriceX96));
+                order.startingSellTick = newStartingSellTick;
+            } else {
+                // Selling NFTs (zeroForOne = false)
+                // Transfer the NFT from the sender (seller) to the maker (buyer)
+                IERC721(collection).safeTransferFrom(sender, bidOrder.maker, bidOrder.nftId);
+
+                // Update the startingBuyTick on the bonding curve
+                uint160 currentSqrtPriceX96 = TickMath.getSqrtRatioAtTick(order.startingBuyTick);
+                uint256 newSqrtPriceX96 = uint256(currentSqrtPriceX96) * (100 + order.delta) / 100;
+                int24 newStartingBuyTick = TickMath.getTickAtSqrtRatio(uint160(newSqrtPriceX96));
+                order.startingBuyTick = newStartingBuyTick;
+
+                // Update the ethBalance of the order
+                order.ethBalance -= bidOrder.ethValue;
+            }
+
+            // Emit an event for the successful swap
+            emit SwapSuccess(sender, bidOrder.nftId, bidOrder.ethValue);
+        } else {
+            // If the swap was not successful, emit an event for the failed swap
+            emit SwapFailed(sender, bidOrder.nftId, bidOrder.ethValue);
+        }
+
         return this.afterSwap.selector;
     }
 
