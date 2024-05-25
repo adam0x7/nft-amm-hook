@@ -158,6 +158,8 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
     }
 
+    fallback() external payable {}
+
     function determineWrappedTokenShare(uint160 sqrtPriceX96, uint256[] calldata tokenIds, uint256 delta) internal {
         // Convert sqrtPriceX96 to the actual price ratio (Token 0 per Token 1)
         uint256 priceRatio = (uint256(sqrtPriceX96) * uint256(sqrtPriceX96)) >> 96; // Square and adjust from Q64.96
