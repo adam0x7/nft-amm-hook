@@ -90,7 +90,7 @@ contract NFTAMMHookTest is Test, Deployers {
         vm.prank(address(hook));
         hook.approve(address(hook), type(uint256).max);
 
-        console.log("TEST CONTRACT ADDRESS", address(this));
+
 
         tokenCurrency = Currency.wrap(address(hook));
 
@@ -187,7 +187,7 @@ contract NFTAMMHookTest is Test, Deployers {
 
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: true,
-            amountSpecified: -1 ether,
+            amountSpecified: 1 ether,
             sqrtPriceLimitX96: TickMath.MIN_SQRT_RATIO + 1
         });
 
@@ -196,16 +196,30 @@ contract NFTAMMHookTest is Test, Deployers {
             settleUsingTransfer: true,
             currencyAlreadySent: false
         });
+
+       // Create a market making order
+       uint256[] memory tokenIds = new uint256[](1);
+       tokenIds[0] = nftId;
+
+       vm.deal(maker, 20);
+
+       vm.prank(maker);
+       collection.setApprovalForAll(address(hook), true);
+       vm.prank(maker);
+       hook.marketMake{value: 5}(address(collection), 0, 60, tokenIds, 10, 20, 1);
+
+       // Deal Ether to the trader
        vm.deal(trader, 100000 ether);
-       vm.prank(trader);
-        bytes memory order = hook.createBuyBidOrder(1, nftId, maker);
+
+       vm.prank(address(hook));
+        bytes memory order = hook.createBuyBidOrder{value: 2 * 10e18}(1, nftId, maker);
 
 
-        vm.prank(trader);
+        vm.prank(address(hook));
         swapRouter.swap{value: 1 ether}(key, params, testSettings, order);
 
         // Assertions for buying the NFT
-        assertEq(IERC721(collection).ownerOf(nftId), trader, "NFT should be transferred to the trader");
+        assertEq(collection.ownerOf(nftId), trader, "NFT should be transferred to the trader");
         assertEq(maker.balance, initialMakerBalance + 1 ether, "Maker should receive the Ether payment");
         assertEq(trader.balance, initialTraderBalance - 1 ether, "Trader's balance should be decreased by the Ether amount");
     }
@@ -231,15 +245,15 @@ contract NFTAMMHookTest is Test, Deployers {
         bytes memory order = hook.createBuyBidOrder(1, nftId, maker);
 
         vm.prank(trader);
-        IERC721(collection).safeTransferFrom(trader, address(hook), nftId);
+        collection.safeTransferFrom(trader, address(hook), nftId);
 
-        vm.prank(hook);
+        vm.prank(address(hook));
         swapRouter.swap(key, params, testSettings, order);
 
         // Assertions for selling the NFT
-        assertEq(IERC721(collection).ownerOf(nftId), maker, "NFT should be transferred to the maker");
+        assertEq(collection.ownerOf(nftId), maker, "NFT should be transferred to the maker");
         assertEq(trader.balance, initialTraderBalance + 1 ether, "Trader should receive the Ether payment");
-        assertEq(hook.ethBalance(), initialMakerBalance - 1 ether, "Hook's Ether balance should be decreased by the Ether amount");
+        assertEq(address(hook).balance, initialMakerBalance - 1 ether, "Hook's Ether balance should be decreased by the Ether amount");
     }
 
 

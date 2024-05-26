@@ -79,6 +79,8 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
     //order id is the current orderCount
     uint256 public orderId;
 
+    mapping(uint256 => address) public bidsToBuyers;
+
 
     constructor(IPoolManager _manager,
         string memory name,
@@ -172,12 +174,17 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
 
     function createBuyBidOrder(uint256 _orderId, uint256 nftId, address _maker) external payable returns(bytes memory) {
+        console.log("ETH DEPOSIT VALUE FOR NFT", msg.value);
         require(msg.value > 0, "Deposit amount must be greater than zero");
         MMOrder storage order = makersToOrders[_maker][orderId];
+        console.log(msg.value, "MY WEI");
+        console.log(getEthPriceAtTick(order.currentTick), "ETH PRICE AT TICK");
 
-        require(msg.value > getEthPriceAtTick(order.currentTick));
+        require(msg.value >= getEthPriceAtTick(order.currentTick), "Not tick equivalent or greater");
 
         BidOrder memory bidOrder = BidOrder(_maker, true, msg.value, nftId, order.currentTick );
+
+        bidsToBuyers[bidOrder.bidId] = msg.sender;
         return abi.encode(bidOrder);
     }
 
@@ -271,25 +278,25 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         PoolKey calldata key,
         IPoolManager.SwapParams calldata params,
         BalanceDelta,
-        bytes calldata bidOrderData
+        bytes calldata hookData
     ) external override poolManagerOnly returns (bytes4) {
+        console.log("AFTER SWAP HOOK HIT");
         // Decode the bidOrder from the calldata
-        BidOrder memory bidOrder = abi.decode(bidOrderData, (BidOrder));
+        BidOrder memory bidOrder = abi.decode(hookData, (BidOrder));
 
-        // Check if the swap was successful
-        if (bidOrder.ethValue <= uint256(params.amountSpecified)) {
-            // Burn the corresponding amount of wrapped tokens
-            _burn(address(this), bidOrder.ethValue);
+        console.log("BID ORDER", bidOrder.ethValue);
+
+
 
             MMOrder storage order = makersToOrders[bidOrder.maker][bidOrder.bidId];
 
             if (params.zeroForOne) {
                 // Buying NFTs (zeroForOne = true)
                 // Transfer the NFT to the sender (buyer)
-                IERC721(collection).safeTransferFrom(address(this), sender, bidOrder.bidId);
+                IERC721(collection).safeTransferFrom(address(this), bidsToBuyers[bidOrder.bidId], bidOrder.bidId);
 
                 // Transfer the Ether to the maker (seller)
-                payable(bidOrder.maker).transfer(bidOrder.ethValue);
+                (bool success, ) = bidOrder.maker.call{value: bidOrder.ethValue}("");
 
                 // Update the startingSellTick on the bonding curve
                 uint160 currentSqrtPriceX96 = TickMath.getSqrtRatioAtTick(order.startingSellTick);
@@ -311,12 +318,7 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
                 order.ethBalance -= bidOrder.ethValue;
             }
 
-            // Emit an event for the successful swap
-            console.log("Swap Success");
-        } else {
-            // If the swap was not successful, emit an event for the failed swap
-          console.log("Swap Failed");
-        }
+
 
         return this.afterSwap.selector;
     }
