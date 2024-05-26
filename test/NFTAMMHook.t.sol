@@ -21,6 +21,7 @@ import {HookMiner} from "./utils/HookMiner.sol";
 
 import {PoolId} from "v4-core/types/PoolId.sol";
 
+import {IERC721} from "openzeppelin/interfaces/IERC721.sol";
 
 import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
 
@@ -35,7 +36,7 @@ contract NFTAMMHookTest is Test, Deployers {
 
     NFTAMMHook hook;
 
-    address maker = address(1);
+    address public maker = address(1);
 
     PoolId id;
 
@@ -178,8 +179,6 @@ contract NFTAMMHookTest is Test, Deployers {
     assert(balanceBefore - tokenIds.length == collection.balanceOf(address(maker)));
     }
 
-}
-
    function testNFTPurchase() public {
         address trader = address(0x2);
         uint256 initialTraderBalance = trader.balance;
@@ -197,10 +196,11 @@ contract NFTAMMHookTest is Test, Deployers {
             settleUsingTransfer: true,
             currencyAlreadySent: false
         });
-
+       vm.deal(trader, 100000 ether);
+       vm.prank(trader);
         bytes memory order = hook.createBuyBidOrder(1, nftId, maker);
 
-        vm.deal(trader, 1 ether);
+
         vm.prank(trader);
         swapRouter.swap{value: 1 ether}(key, params, testSettings, order);
 
@@ -243,4 +243,4 @@ contract NFTAMMHookTest is Test, Deployers {
     }
 
 
-
+}
