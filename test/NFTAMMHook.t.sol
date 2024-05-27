@@ -102,6 +102,7 @@ contract NFTAMMHookTest is Test, Deployers {
             SQRT_RATIO_1_1, // Initial Sqrt(P) value = 1
             ZERO_BYTES // No additional `initData`
         );
+
     }
 
 
@@ -184,10 +185,47 @@ contract NFTAMMHookTest is Test, Deployers {
         uint256 initialTraderBalance = trader.balance;
         uint256 initialMakerBalance = maker.balance;
         uint256 nftId = 0;
+       uint256 fee = 20;
+
+       uint160 currentSqrtPrice;
+       int24 currentTick;
+       uint24 swapFee;
+       (currentSqrtPrice, currentTick, fee, swapFee) = manager.getSlot0(id);
+       uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(0);
+       uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(6);
+
+       uint256 amount0 = 5; // eth deposited from market making order
+       uint256 amount1 = hook.makerBalances(maker); // amount of wrapped tokens for NFT measured in eth. calculated in market maker order
+
+
+   uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
+           currentSqrtPrice,
+           sqrtRatioAX96,       // Lower tick sqrt price
+           sqrtRatioBX96,       // Upper tick sqrt price
+           amount0,             // ETH amount
+           amount1              // wNFT amount (in ETH equivalent)
+       );
+
+
+
+       vm.prank(address(hook));
+
+       uint256 liquidityToAddUint256 = uint256(liquidityToAdd);
+       int256 liquidityToAddInt256 = int256(liquidityToAddUint256);
+
+       modifyLiquidityRouter.modifyLiquidity{value: liquidityToAdd}(
+           key,
+           IPoolManager.ModifyLiquidityParams({
+               tickLower: TickMath.minUsableTick(60),
+               tickUpper: TickMath.maxUsableTick(60),
+               liquidityDelta: liquidityToAddInt256
+           }),
+           "" // empty bytes
+       );
 
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: true,
-            amountSpecified: 1 ether,
+            amountSpecified: -2 ether,
             sqrtPriceLimitX96: TickMath.MIN_SQRT_RATIO + 1
         });
 
@@ -197,7 +235,6 @@ contract NFTAMMHookTest is Test, Deployers {
             currencyAlreadySent: false
         });
 
-       // Create a market making order
        uint256[] memory tokenIds = new uint256[](1);
        tokenIds[0] = nftId;
 
@@ -208,20 +245,19 @@ contract NFTAMMHookTest is Test, Deployers {
        vm.prank(maker);
        hook.marketMake{value: 5}(address(collection), 0, 60, tokenIds, 10, 20, 1);
 
-       // Deal Ether to the trader
        vm.deal(trader, 100000 ether);
 
-       vm.prank(address(hook));
-        bytes memory order = hook.createBuyBidOrder{value: 2 * 10e18}(1, nftId, maker);
+       vm.prank(address(trader));
+        bytes memory order = hook.createBuyBidOrder{value: 2 ether}(1, nftId, maker);
 
-
+        vm.deal(address(manager), 10 ether);
         vm.prank(address(hook));
-        swapRouter.swap{value: 1 ether}(key, params, testSettings, order);
+        swapRouter.swap{value: 2 ether}(key, params, testSettings, order);
 
         // Assertions for buying the NFT
-//        assertEq(collection.ownerOf(nftId), trader, "NFT should be transferred to the trader");
-//        assertEq(maker.balance, initialMakerBalance + 1 ether, "Maker should receive the Ether payment");
-//        assertEq(trader.balance, initialTraderBalance - 1 ether, "Trader's balance should be decreased by the Ether amount");
+        assertEq(collection.ownerOf(nftId), trader, "NFT should be transferred to the trader");
+        assertEq(maker.balance, initialMakerBalance + 1 ether, "Maker should receive the Ether payment");
+        assertEq(trader.balance, initialTraderBalance - 1 ether, "Trader's balance should be decreased by the Ether amount");
     }
 
     function testNFTSale() public {
