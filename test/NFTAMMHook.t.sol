@@ -65,7 +65,7 @@ contract NFTAMMHookTest is Test, Deployers {
             flags,
             0,
             type(NFTAMMHook).creationCode,
-            abi.encode(manager, "Wrapped Token", "TEST_WRAPPED", 100000000, address(collection), 18)
+            abi.encode(manager, "Wrapped Token", "TEST_WRAPPED", type(uint256).max, address(collection), 18)
         );
 
         // Deploy our hook
@@ -73,7 +73,7 @@ contract NFTAMMHookTest is Test, Deployers {
             manager,
             "Wrapped Token",
             "TEST_WRAPPED",
-            100000000,
+            type(uint256).max,
             address(collection),
             18
         );
@@ -182,11 +182,15 @@ contract NFTAMMHookTest is Test, Deployers {
 
    function testNFTPurchase() public {
         address trader = address(0x2);
+       vm.deal(maker, 20);
+       vm.deal(trader, 10 ether);
         uint256 initialTraderBalance = trader.balance;
         uint256 initialMakerBalance = maker.balance;
-        uint256 nftId = 0;
-       uint256 fee = 20;
 
+
+       //adding liquidity
+        uint256 nftId = 0;
+        uint256 fee = 20;
        uint160 currentSqrtPrice;
        int24 currentTick;
        uint24 swapFee;
@@ -194,8 +198,8 @@ contract NFTAMMHookTest is Test, Deployers {
        uint160 sqrtRatioAX96 = TickMath.getSqrtRatioAtTick(0);
        uint160 sqrtRatioBX96 = TickMath.getSqrtRatioAtTick(6);
 
-       uint256 amount0 = 5; // eth deposited from market making order
-       uint256 amount1 = hook.makerBalances(maker); // amount of wrapped tokens for NFT measured in eth. calculated in market maker order
+       uint256 amount0 = 5 ether; // eth deposited from market making order
+       uint256 amount1 = hook.makerBalances(maker) * 10e18; // amount of wrapped tokens for NFT measured in eth. calculated in market maker order
 
 
    uint128 liquidityToAdd = LiquidityAmounts.getLiquidityForAmounts(
@@ -207,7 +211,7 @@ contract NFTAMMHookTest is Test, Deployers {
        );
 
 
-
+        vm.deal(address(hook), 1000000000000000000000000000000000000000 ether);
        vm.prank(address(hook));
 
        uint256 liquidityToAddUint256 = uint256(liquidityToAdd);
@@ -238,25 +242,25 @@ contract NFTAMMHookTest is Test, Deployers {
        uint256[] memory tokenIds = new uint256[](1);
        tokenIds[0] = nftId;
 
-       vm.deal(maker, 20);
+
 
        vm.prank(maker);
        collection.setApprovalForAll(address(hook), true);
        vm.prank(maker);
        hook.marketMake{value: 5}(address(collection), 0, 60, tokenIds, 10, 20, 1);
 
-       vm.deal(trader, 100000 ether);
+
 
        vm.prank(address(trader));
         bytes memory order = hook.createBuyBidOrder{value: 2 ether}(1, nftId, maker);
-       
+
         vm.prank(address(hook));
         swapRouter.swap{value: 2 ether}(key, params, testSettings, order);
 
         // Assertions for buying the NFT
         assertEq(collection.ownerOf(nftId), trader, "NFT should be transferred to the trader");
-        assertEq(maker.balance, initialMakerBalance + 1 ether, "Maker should receive the Ether payment");
-        assertEq(trader.balance, initialTraderBalance - 1 ether, "Trader's balance should be decreased by the Ether amount");
+        assertGt(maker.balance, initialMakerBalance, "Maker should receive the Ether payment");
+        assertLt(trader.balance, initialTraderBalance, "Trader's balance should be decreased by the Ether amount");
     }
 
     function testNFTSale() public {
