@@ -249,8 +249,7 @@ contract NFTAMMHookTest is Test, Deployers {
 
        vm.prank(address(trader));
         bytes memory order = hook.createBuyBidOrder{value: 2 ether}(1, nftId, maker);
-
-        vm.deal(address(manager), 10 ether);
+       
         vm.prank(address(hook));
         swapRouter.swap{value: 2 ether}(key, params, testSettings, order);
 
