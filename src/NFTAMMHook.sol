@@ -174,18 +174,29 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
 
     function createBuyBidOrder(uint256 _orderId, uint256 nftId, address _maker) external payable returns(bytes memory) {
-        console.log("ETH DEPOSIT VALUE FOR NFT", msg.value);
         require(msg.value > 0, "Deposit amount must be greater than zero");
         MMOrder storage order = makersToOrders[_maker][orderId];
-        console.log(msg.value, "MY WEI");
-        console.log(getEthPriceAtTick(order.currentTick), "ETH PRICE AT TICK");
-
         require(msg.value >= getEthPriceAtTick(order.currentTick), "Not tick equivalent or greater");
 
         BidOrder memory bidOrder = BidOrder(_maker, true, msg.value, nftId, order.currentTick );
 
         bidsToBuyers[bidOrder.bidId] = msg.sender;
         return abi.encode(bidOrder);
+    }
+
+    function createSellOrder(uint256 _orderId, uint256 nftId, address _maker) external returns(bytes memory)  {
+        // Find the latest collection bid and its current eth tick. This will determine how much eth needs to be transferred to the trader.
+        MMOrder storage order = makersToOrders[_maker][_orderId];
+        int24 currentTick = order.currentTick;
+
+        // Transfer the NFT from the sender (seller) to the hook contract
+        IERC721(collection).safeTransferFrom(msg.sender, address(this), nftId);
+
+        // Create a sell order with the necessary information
+        BidOrder memory sellOrder = BidOrder(_maker, true, getEthPriceAtTick(currentTick), nftId, currentTick);
+        bidsToBuyers[sellOrder.bidId] = msg.sender;
+
+        return abi.encode(sellOrder);
     }
 
     fallback() external payable {}
@@ -306,7 +317,7 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
             } else {
                 // Selling NFTs (zeroForOne = false)
                 // Transfer the NFT from the sender (seller) to the maker (buyer)
-                IERC721(collection).safeTransferFrom(sender, bidOrder.maker, bidOrder.bidId);
+                IERC721(collection).safeTransferFrom(address(this), bidOrder.maker, bidOrder.bidId);
 
                 // Update the startingBuyTick on the bonding curve
                 uint160 currentSqrtPriceX96 = TickMath.getSqrtRatioAtTick(order.startingBuyTick);
