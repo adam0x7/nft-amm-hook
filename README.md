@@ -1,66 +1,31 @@
-## Foundry
+# NFTAMMHook.sol 📜
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Overview 🌐
+`NFTAMMHook` is a smart contract designed to integrate with Uniswap V4's hook system, allowing for the creation of market making orders for NFTs within a liquidity pool environment. This contract leverages the flexibility of Uniswap V4 hooks to facilitate both buying and selling NFTs based on a bonding curve mechanism.
 
-Foundry consists of:
+## Key Features 🌟
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- **Market Making for NFTs** 📈: Users can create orders to buy and sell NFTs at specified price points, adjusting the prices dynamically based on a predefined delta.
+- **Bonding Curve Pricing** 📊: Implements a bonding curve for price determination, where the price adjusts according to a set delta percentage as more NFTs are bought or sold.
+- **Integration with Uniswap V4 Hooks** 🔗: Utilizes the before and after swap hooks to integrate custom logic into the trading process, enhancing the flexibility and functionality of NFT trades.
+- **Wrapped NFTs (wNFTs)** 🎁: Supports the concept of wrapped NFTs, where NFTs are wrapped into a fungible token format to facilitate easier trading and liquidity provision.
 
-## Documentation
+## Functions 🛠️
 
-https://book.getfoundry.sh/
+### Market Making
+- `marketMake` 📉: Allows a user to create a market making order by specifying parameters such as the NFT collection address, buy and sell ticks, and the maximum number of NFTs they are willing to trade. This function also handles the transfer of NFTs to the contract and the initial setup of the order.
 
-## Usage
+### Order Management 🗂️
+- `createBuyBidOrder` 🛒: Facilitates the creation of a buy order for NFTs at the current market price.
+- `createSellOrder` 💰: Allows users to sell their NFTs at the current market price, transferring the NFT to the contract and setting up the sale.
 
-### Build
+### Price Calculation 🧮
+- `getEthPriceAtTick` 💵: Calculates the ETH price at a given tick using the Uniswap V4 TickMath library.
+- `createSqrtPriceForSingleToken` 🔢: Determines the square root price for a single token based on its position in the order and the specified delta.
 
-```shell
-$ forge build
-```
+### Liquidity Management 💧
+- `determineWrappedTokenShare` 📦: Calculates the share of wrapped tokens corresponding to the NFTs deposited, based on the current price and the bonding curve.
 
-### Test
-
-```shell
-$ forge test
-```
-
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### Swap Hooks 🪝
+- `beforeSwap` 🔍: Custom logic to be executed before a swap occurs.
+- `afterSwap` 🔄: Handles the transfer of NFTs and ETH post-swap, adjusting the bonding curve and updating balances accordingly.
