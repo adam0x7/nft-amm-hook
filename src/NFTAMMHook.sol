@@ -326,6 +326,9 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
                 order.startingBuyTick = newStartingBuyTick;
 
                 // Update the ethBalance of the order
+                console.log("UNDERFLOW HERE");
+                console.log("ORDER ETH BALANCE", order.ethBalance);
+                console.log("BID ORDER", bidOrder.ethValue);
                 order.ethBalance -= bidOrder.ethValue;
             }
 
