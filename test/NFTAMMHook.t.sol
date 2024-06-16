@@ -247,7 +247,7 @@ contract NFTAMMHookTest is Test, Deployers {
        vm.prank(maker);
        collection.setApprovalForAll(address(hook), true);
        vm.prank(maker);
-       hook.marketMake{value: 5}(address(collection), 0, 60, tokenIds, 10, 20, 1);
+       hook.marketMake{value: 5 ether}(address(collection), 0, 60, tokenIds, 10, 20, 1);
 
 
 
@@ -278,17 +278,14 @@ contract NFTAMMHookTest is Test, Deployers {
         });
 
         PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
-            withdrawTokens: true,
-            settleUsingTransfer: true,
+            withdrawTokens: false,
+            settleUsingTransfer: false,
             currencyAlreadySent: false
         });
 
         uint256[] memory tokenIds = new uint256[](2);
         tokenIds[0] = nftId;
         tokenIds[1] = 1;
-
-
-
 
         vm.prank(maker);
         collection.setApprovalForAll(address(hook), true);

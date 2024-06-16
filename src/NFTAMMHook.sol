@@ -66,6 +66,8 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         uint256 bidId;
 
         int24 bidTick;
+
+        uint256 orderId;
     }
 
 
@@ -178,7 +180,7 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         MMOrder storage order = makersToOrders[_maker][orderId];
         require(msg.value >= getEthPriceAtTick(order.currentTick), "Not tick equivalent or greater");
 
-        BidOrder memory bidOrder = BidOrder(_maker, true, msg.value, nftId, order.currentTick );
+        BidOrder memory bidOrder = BidOrder(_maker, true, msg.value, nftId, order.currentTick, _orderId);
 
         bidsToBuyers[bidOrder.bidId] = msg.sender;
         return abi.encode(bidOrder);
@@ -193,7 +195,7 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
         IERC721(collection).safeTransferFrom(msg.sender, address(this), nftId);
 
         // Create a sell order with the necessary information
-        BidOrder memory sellOrder = BidOrder(_maker, true, getEthPriceAtTick(currentTick), nftId, currentTick);
+        BidOrder memory sellOrder = BidOrder(_maker, true, getEthPriceAtTick(currentTick), nftId, currentTick, _orderId);
         bidsToBuyers[sellOrder.bidId] = msg.sender;
 
         return abi.encode(sellOrder);
@@ -299,7 +301,7 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
 
 
 
-            MMOrder storage order = makersToOrders[bidOrder.maker][bidOrder.bidId];
+            MMOrder storage order = makersToOrders[bidOrder.maker][bidOrder.orderId];
 
             if (params.zeroForOne) {
                 // Buying NFTs (zeroForOne = true)
@@ -329,7 +331,8 @@ contract NFTAMMHook is ERC20, BaseHook, IERC721Receiver {
                 console.log("UNDERFLOW HERE");
                 console.log("ORDER ETH BALANCE", order.ethBalance);
                 console.log("BID ORDER", bidOrder.ethValue);
-                order.ethBalance -= bidOrder.ethValue;
+                console.log("ORDER ID", orderId);
+                order.ethBalance -= (bidOrder.ethValue / 10e18);
             }
 
 
