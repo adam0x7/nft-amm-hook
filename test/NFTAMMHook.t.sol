@@ -26,6 +26,19 @@ import {IERC721} from "openzeppelin/interfaces/IERC721.sol";
 import {LiquidityAmounts} from "@uniswap/v4-core/test/utils/LiquidityAmounts.sol";
 
 contract NFTAMMHookTest is Test, Deployers {
+    struct BidOrder {
+        address maker;
+
+        bool immediate;
+
+        uint256 ethValue;
+
+        uint256 bidId;
+
+        int24 bidTick;
+
+        uint256 orderId;
+    }
     using CurrencyLibrary for Currency;
 
     MockERC20 token;
@@ -271,11 +284,6 @@ contract NFTAMMHookTest is Test, Deployers {
         uint256 initialMakerBalance = maker.balance;
         uint256 nftId = 0;
 
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
-            zeroForOne: false,
-            amountSpecified: 1 ether,
-            sqrtPriceLimitX96: TickMath.MAX_SQRT_RATIO - 1
-        });
 
         PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
             withdrawTokens: false,
@@ -300,6 +308,12 @@ contract NFTAMMHookTest is Test, Deployers {
 
         vm.prank(trader);
         bytes memory order = hook.createSellOrder(1, 6, maker);
+
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: false,
+            amountSpecified: (1006017734268818165 / 10e18),
+            sqrtPriceLimitX96: TickMath.MAX_SQRT_RATIO - 1
+        });
 
         vm.prank(address(hook));
         swapRouter.swap(key, params, testSettings, order);

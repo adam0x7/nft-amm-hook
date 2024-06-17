@@ -27,5 +27,4 @@
 - `determineWrappedTokenShare` 📦: Calculates the share of wrapped tokens corresponding to the NFTs deposited, based on the current price and the bonding curve.
 
 ### Swap Hooks 🪝
-- `beforeSwap` 🔍: Custom logic to be executed before a swap occurs.
 - `afterSwap` 🔄: Handles the transfer of NFTs and ETH post-swap, adjusting the bonding curve and updating balances accordingly.
