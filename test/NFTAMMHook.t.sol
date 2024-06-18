@@ -311,7 +311,7 @@ contract NFTAMMHookTest is Test, Deployers {
 
         IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
             zeroForOne: false,
-            amountSpecified: (1006017734268818165 / 10e18),
+            amountSpecified: 1006017734268818165,
             sqrtPriceLimitX96: TickMath.MAX_SQRT_RATIO - 1
         });
 
