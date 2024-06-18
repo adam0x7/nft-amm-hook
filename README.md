@@ -1,7 +1,8 @@
-# NFTAMMHook.sol 📜
+# NFTAMMHook 📜
 
 ## Overview 🌐
 `NFTAMMHook` is a smart contract designed to integrate with Uniswap V4's hook system, allowing for the creation of market making orders for NFTs within a liquidity pool environment. This contract leverages the flexibility of Uniswap V4 hooks to facilitate both buying and selling NFTs based on a bonding curve mechanism.
+You can read the full article about this hook here on my Mirror -> https://mirror.xyz/0x0e729b11661B3f1C1E829AAdF764D5C3295e1256/u1JYJ6_XWf-bgyQIZjHYsC22WgArKCRJxk8pf37am3Y
 
 ## Key Features 🌟
 
