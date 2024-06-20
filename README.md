@@ -1,4 +1,12 @@
 # NFTAMMHook.sol 📜
+### How To Run
+Clone this repository, `forge install`. Then the subsequent command below. 
+```sh
+forge build --evm-version cancun --via-ir  
+```
+<blockquote style="border-left: 4px solid #f0ad4e; background-color: #fcf8e3; padding: 10px; margin: 20px 0; color: #8a6d3b;">
+<strong>Notice:</strong> This is an important message! Click here to read the full article: [Mirror Article](https://mirror.xyz/0x0e729b11661B3f1C1E829AAdF764D5C3295e1256/u1JYJ6_XWf-bgyQIZjHYsC22WgArKCRJxk8pf37am3Y)
+</blockquote>
 
 ## Overview 🌐
 `NFTAMMHook` is a smart contract designed to integrate with Uniswap V4's hook system, allowing for the creation of market making orders for NFTs within a liquidity pool environment. This contract leverages the flexibility of Uniswap V4 hooks to facilitate both buying and selling NFTs based on a bonding curve mechanism.
