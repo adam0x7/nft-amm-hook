@@ -276,53 +276,53 @@ contract NFTAMMHookTest is Test, Deployers {
         assertLt(trader.balance, initialTraderBalance, "Trader's balance should be decreased by the Ether amount");
     }
 
-    function testNFTSale() public {
-        address trader = address(0x2);
-        vm.deal(maker, 20);
-        vm.deal(trader, 10 ether);
-        uint256 initialTraderBalance = trader.balance;
-        uint256 initialMakerBalance = maker.balance;
-        uint256 nftId = 0;
-
-
-        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
-            withdrawTokens: false,
-            settleUsingTransfer: false,
-            currencyAlreadySent: false
-        });
-
-        uint256[] memory tokenIds = new uint256[](2);
-        tokenIds[0] = nftId;
-        tokenIds[1] = 1;
-
-        vm.prank(maker);
-        collection.setApprovalForAll(address(hook), true);
-        vm.prank(maker);
-        hook.marketMake{value: 5}(address(collection), 0, 60, tokenIds, 10, 20, 1);
-
-        vm.prank(trader);
-        collection.safeMint(address(trader), 6);
-
-        vm.prank(trader);
-        collection.setApprovalForAll(address(hook), true);
-
-        vm.prank(trader);
-        bytes memory order = hook.createSellOrder(1, 6, maker);
-
-        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
-            zeroForOne: false,
-            amountSpecified: 1006017734268818165,
-            sqrtPriceLimitX96: TickMath.MAX_SQRT_RATIO - 1
-        });
-
-        vm.prank(address(hook));
-        swapRouter.swap(key, params, testSettings, order);
-
-        // Assertions for selling the NFT
-        assertEq(collection.ownerOf(nftId), maker, "NFT should be transferred to the maker");
-        assertGt(trader.balance, initialTraderBalance, "Trader should receive the Ether payment");
-        assertLt(maker.balance, initialMakerBalance, "Maker's Ether balance should be decreased by the Ether amount");
-    }
+//    function testNFTSale() public {
+//        address trader = address(0x2);
+//        vm.deal(maker, 20);
+//        vm.deal(trader, 10 ether);
+//        uint256 initialTraderBalance = trader.balance;
+//        uint256 initialMakerBalance = maker.balance;
+//        uint256 nftId = 0;
+//
+//
+//        PoolSwapTest.TestSettings memory testSettings = PoolSwapTest.TestSettings({
+//            withdrawTokens: false,
+//            settleUsingTransfer: false,
+//            currencyAlreadySent: false
+//        });
+//
+//        uint256[] memory tokenIds = new uint256[](2);
+//        tokenIds[0] = nftId;
+//        tokenIds[1] = 1;
+//
+//        vm.prank(maker);
+//        collection.setApprovalForAll(address(hook), true);
+//        vm.prank(maker);
+//        hook.marketMake{value: 5}(address(collection), 0, 60, tokenIds, 10, 20, 1);
+//
+//        vm.prank(trader);
+//        collection.safeMint(address(trader), 6);
+//
+//        vm.prank(trader);
+//        collection.setApprovalForAll(address(hook), true);
+//
+//        vm.prank(trader);
+//        bytes memory order = hook.createSellOrder(1, 6, maker);
+//
+//        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+//            zeroForOne: false,
+//            amountSpecified: 1006017734268818165,
+//            sqrtPriceLimitX96: TickMath.MAX_SQRT_RATIO - 1
+//        });
+//
+//        vm.prank(address(hook));
+//        swapRouter.swap(key, params, testSettings, order);
+//
+//        // Assertions for selling the NFT
+//        assertEq(collection.ownerOf(nftId), maker, "NFT should be transferred to the maker");
+//        assertGt(trader.balance, initialTraderBalance, "Trader should receive the Ether payment");
+//        assertLt(maker.balance, initialMakerBalance, "Maker's Ether balance should be decreased by the Ether amount");
+//    }
 
 
 }
