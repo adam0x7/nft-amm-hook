@@ -1,7 +1,7 @@
 
 # Creating An NFT AMM As A Uniswap Hook 🦄🖼️
 <blockquote style="border-left: 4px solid #f0ad4e; background-color: #fcf8e3; padding: 10px; margin: 20px 0; color: #8a6d3b;">
-<strong>Notice:</strong> This is an important message! Click here to read the full article: https://mirror.xyz/0x0e729b11661B3f1C1E829AAdF764D5C3295e1256/u1JYJ6_XWf-bgyQIZjHYsC22WgArKCRJxk8pf37am3Y
+<strong>Full Article:</strong> https://mirror.xyz/0x0e729b11661B3f1C1E829AAdF764D5C3295e1256/u1JYJ6_XWf-bgyQIZjHYsC22WgArKCRJxk8pf37am3Y
 </blockquote>
 
 ```markdown
