@@ -4,8 +4,6 @@
 <strong>Notice:</strong> This is an important message! Click here to read the full article: https://mirror.xyz/0x0e729b11661B3f1C1E829AAdF764D5C3295e1256/u1JYJ6_XWf-bgyQIZjHYsC22WgArKCRJxk8pf37am3Y
 </blockquote>
 
-To include your shell commands in a code snippet in a Markdown document, you can group them together into a single code block, labeling each command with a comment for clarity. Here's how you could format it:
-
 ```markdown
 # Install dependencies using Forge
 forge install
