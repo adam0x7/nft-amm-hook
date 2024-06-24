@@ -12,9 +12,6 @@ forge install
 forge build --evm-version cancun --via-ir
 ```
 
-
-This structure uses comments within the shell script code block to explain what each command does, keeping it neat and easy to understand. When displayed in a Markdown renderer, this will show up as a single code block with two distinct commands, each preceded by a comment explaining its purpose.
-
 ## Overview 🌐
 The `NFTAMMHook` is a Uniswap V4 Hook that is a POC for creating an NFT AMM using the `afterSwap` hook.
 ## Key Features 🌟
